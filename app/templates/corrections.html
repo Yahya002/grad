@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Annotation Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f5f5f5;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+        }
+
+        input, select {
+            width: 200px;
+            padding: 5px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        pre {
+            background: #eee;
+            padding: 10px;
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+<h1>LLM Annotation Dashboard</h1>
+
+
+<div id="logs"></div>
+
+
+<script>
+
+window.onload = function() {
+    loadLogs();
+};
+
+async function loadLogs() {
+    console.log("Loading logs...");
+    const response = await fetch("/llm_logs_unvalidated");
+
+    const logs = await response.json();
+    if (logs.length === 0) {
+        document.getElementById("logs").innerHTML =
+            "<h3>All samples have been reviewed ✅</h3>";
+        return;
+    }
+    console.log("LOGS:", logs);
+    const container = document.getElementById("logs");
+
+    container.innerHTML = "";
+
+
+    logs.forEach(log => {
+
+        container.innerHTML += `
+
+        <div class="card">
+
+            <h3>Message</h3>
+
+            <textarea readonly>
+${log.message}
+            </textarea>
+
+
+            <h3>Model prediction</h3>
+
+            <pre>
+${JSON.stringify(log.response, null, 2)}
+            </pre>
+
+
+            <h3>Correction</h3>
+
+            Intent:
+            <input id="intent-${log._id}"
+                   value="${log.response.intent ?? ""}">
+
+
+            <br>
+
+
+            From:
+            <input id="from-${log._id}"
+                   value="${log.response.from ?? ""}">
+
+
+            To:
+            <input id="to-${log._id}"
+                   value="${log.response.to ?? ""}">
+
+
+            Name:
+            <input id="name-${log._id}"
+                   value="${log.response.name ?? ""}">
+
+
+            Phone:
+            <input id="phone-${log._id}"
+                   value="${log.response.phone ?? ""}">
+
+
+            <br><br>
+
+
+            <button onclick="save('${log._id}')">
+                Save Correction
+            </button>
+
+
+        </div>
+
+        `;
+
+    });
+
+}
+
+
+
+async function save(id) {
+
+
+    const corrected = {
+
+        intent:
+            document.getElementById(`intent-${id}`).value,
+
+
+        from:
+            document.getElementById(`from-${id}`).value || null,
+
+
+        to:
+            document.getElementById(`to-${id}`).value || null,
+
+
+        name:
+            document.getElementById(`name-${id}`).value || null,
+
+
+        phone:
+            document.getElementById(`phone-${id}`).value || null
+    };
+
+
+    const response = await fetch(`/llm_logs/${id}`, {
+
+        method: "PATCH",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            corrected
+        })
+
+    });
+
+
+    if (response.ok) {
+        await loadLogs();
+    }
+    else {
+        alert("Failed to save correction");
+        console.error(await response.text());
+    }
+}
+
+
+
+
+</script>
+
+
+</body>
+
+</html>

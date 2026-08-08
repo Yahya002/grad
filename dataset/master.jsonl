@@ -1,0 +1,13 @@
+{"text": "يرجى الغاء الطلب", "intent": "cancel", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:42:18.721000"}}
+{"text": "يرجى الغاء الطلب", "intent": "cancel", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:43:50.958000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:44:56.818000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:18.952000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:23.650000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:26.023000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:27.795000"}}
+{"text": "كيفك", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:45.418000"}}
+{"text": "سلام", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 13:46:53.656000"}}
+{"text": "شلونك", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 14:23:46.983000"}}
+{"text": "شلونتش", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 14:23:48.411000"}}
+{"text": "شلونتش", "intent": "greeting", "entities": {"name": "null", "phone": "null", "from": "null", "to": "null"}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 14:23:52.002000"}}
+{"text": "مرحب", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}, "metadata": {"source": "human_annotation", "timestamp": "2026-08-02 14:23:59.203000"}}

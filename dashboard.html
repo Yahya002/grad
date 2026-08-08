@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Taxi Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        table {
+            width: 90%;
+            margin: auto;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background: #333;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🚕 Taxi Orders Dashboard</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Type</th>
+        </tr>
+    </thead>
+
+    <tbody id="ordersTable"></tbody>
+</table>
+
+<script>
+async function loadOrders() {
+    try {
+        let res = await fetch("http://localhost:5000/orders");
+        let data = await res.json();
+
+        let table = document.getElementById("ordersTable");
+        table.innerHTML = "";
+
+       data.forEach(order => {
+    let row = `
+        <tr>
+            <td>${order.name || order.user || "-"}</td>
+            <td>${order.phone || "-"}</td>
+            <td>${order.from || "-"}</td>
+            <td>${Array.isArray(order.to) ? order.to[0] : (order.to || "-")}</td>
+            <td>${order.intent || order.status || "unknown"}</td>
+        </tr>
+    `;
+    table.innerHTML += row;
+});
+
+    } catch (err) {
+        console.log("Error:", err);
+    }
+}
+
+// تحميل أول مرة
+loadOrders();
+
+// تحديث كل 3 ثواني
+setInterval(loadOrders, 3000);
+</script>
+
+</body>
+</html>

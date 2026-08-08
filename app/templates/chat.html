@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Tester</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+            background: #f4f4f4;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            font-size: 16px;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+        }
+
+        pre {
+            background: white;
+            padding: 15px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 30px;
+        }
+
+        td, th {
+            border: 1px solid #ddd;
+            padding: 10px;
+            vertical-align: top;
+        }
+
+        th {
+            background: #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>LLM Tester</h2>
+
+<textarea id="message"
+placeholder="اكتب رسالة..."></textarea>
+
+<br>
+
+<button onclick="send()">Send</button>
+
+<h3>Reply</h3>
+
+<pre id="reply"></pre>
+
+<h3>Logs</h3>
+
+<table id="logs">
+    <thead>
+    <tr>
+        <th>Message</th>
+        <th>Response</th>
+        <th>Validated</th>
+    </tr>
+    </thead>
+
+    <tbody></tbody>
+</table>
+
+<script>
+
+async function send() {
+
+    const message = document.getElementById("message").value;
+
+    const res = await fetch("/chat", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            message,
+            user_id: 1
+        })
+
+    });
+
+    const json = await res.json();
+
+    document.getElementById("reply").textContent =
+        JSON.stringify(json, null, 2);
+
+    loadLogs();
+}
+
+async function loadLogs() {
+
+    const res = await fetch("/llm_logs");
+
+    const logs = await res.json();
+
+    const tbody = document.querySelector("#logs tbody");
+
+    tbody.innerHTML = "";
+
+    logs.reverse().forEach(log => {
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${log.message}</td>
+
+            <td>
+                <pre>${JSON.stringify(log.response, null, 2)}</pre>
+            </td>
+
+            <td>${log.validated}</td>
+        </tr>
+        `;
+    });
+}
+
+loadLogs();
+
+</script>
+
+</body>
+</html>
