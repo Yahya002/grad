@@ -1,0 +1,137 @@
+(.venv) PS D:\dev-projects\python\grad_ali\Taxi_ai_server\Taxi_ai_server> py ml/scripts/train_all.py                   
+=== Validating dataset ===
+Validated examples: 469
+Dataset is valid.
+=== Preparing dataset ===
+Total:      469
+Train:      375
+Validation: 47
+Test:       47
+=== Training intent model ===
+Loading intent dataset...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 4670.95it/s]
+[transformers] BertForSequenceClassification LOAD REPORT from: aubmindlab/bert-base-arabertv02
+Key                                        | Status     | 
+-------------------------------------------+------------+-
+cls.predictions.transform.dense.bias       | UNEXPECTED | 
+cls.predictions.bias                       | UNEXPECTED | 
+cls.seq_relationship.bias                  | UNEXPECTED | 
+cls.predictions.transform.dense.weight     | UNEXPECTED | 
+cls.seq_relationship.weight                | UNEXPECTED | 
+cls.predictions.transform.LayerNorm.bias   | UNEXPECTED | 
+cls.predictions.transform.LayerNorm.weight | UNEXPECTED | 
+classifier.bias                            | MISSING    | 
+classifier.weight                          | MISSING    | 
+
+Notes:
+- UNEXPECTED:   can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:      those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+Training intent model...
+{'loss': '0.5764', 'grad_norm': '3.084', 'learning_rate': '1.923e-05', 'epoch': '0.2128'}                                                             
+{'loss': '0.4201', 'grad_norm': '2.676', 'learning_rate': '1.838e-05', 'epoch': '0.4255'}                                                             
+{'loss': '0.3424', 'grad_norm': '2.364', 'learning_rate': '1.753e-05', 'epoch': '0.6383'}                                                             
+{'loss': '0.2881', 'grad_norm': '3.224', 'learning_rate': '1.668e-05', 'epoch': '0.8511'}                                                             
+{'eval_loss': '0.2216', 'eval_f1_micro': '0.9167', 'eval_f1_macro': '0.6171', 'eval_runtime': '0.5235', 'eval_samples_per_second': '89.79', 'eval_steps_per_second': '11.46', 'epoch': '1'}                                                                                                                  
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:05<00:00,  5.21s/it]
+{'loss': '0.2397', 'grad_norm': '1.901', 'learning_rate': '1.583e-05', 'epoch': '1.064'}                                                              
+{'loss': '0.2149', 'grad_norm': '1.908', 'learning_rate': '1.498e-05', 'epoch': '1.277'}                                                              
+{'loss': '0.1743', 'grad_norm': '1.665', 'learning_rate': '1.413e-05', 'epoch': '1.489'}                                                              
+{'loss': '0.1559', 'grad_norm': '1.714', 'learning_rate': '1.328e-05', 'epoch': '1.702'}                                                              
+{'loss': '0.1361', 'grad_norm': '1.679', 'learning_rate': '1.243e-05', 'epoch': '1.915'}                                                              
+{'eval_loss': '0.1078', 'eval_f1_micro': '0.9756', 'eval_f1_macro': '0.7164', 'eval_runtime': '0.3428', 'eval_samples_per_second': '137.1', 'eval_steps_per_second': '17.5', 'epoch': '2'}                                                                                                                   
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:08<00:00,  8.03s/it]
+{'loss': '0.1211', 'grad_norm': '1.169', 'learning_rate': '1.157e-05', 'epoch': '2.128'}                                                              
+{'loss': '0.1059', 'grad_norm': '0.9837', 'learning_rate': '1.072e-05', 'epoch': '2.34'}                                                              
+{'loss': '0.07491', 'grad_norm': '0.5767', 'learning_rate': '9.872e-06', 'epoch': '2.553'}                                                            
+{'loss': '0.08789', 'grad_norm': '0.6728', 'learning_rate': '9.021e-06', 'epoch': '2.766'}                                                            
+{'loss': '0.07707', 'grad_norm': '0.5918', 'learning_rate': '8.17e-06', 'epoch': '2.979'}                                                             
+{'eval_loss': '0.07952', 'eval_f1_micro': '0.9677', 'eval_f1_macro': '0.7064', 'eval_runtime': '0.3451', 'eval_samples_per_second': '136.2', 'eval_steps_per_second': '17.39', 'epoch': '3'}                                                                                                                 
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:05<00:00,  5.60s/it]
+{'loss': '0.07573', 'grad_norm': '1.202', 'learning_rate': '7.319e-06', 'epoch': '3.191'}                                                             
+{'loss': '0.05498', 'grad_norm': '0.3397', 'learning_rate': '6.468e-06', 'epoch': '3.404'}                                                            
+{'loss': '0.05981', 'grad_norm': '0.8805', 'learning_rate': '5.617e-06', 'epoch': '3.617'}                                                            
+{'loss': '0.06989', 'grad_norm': '0.5198', 'learning_rate': '4.766e-06', 'epoch': '3.83'}                                                             
+{'eval_loss': '0.06004', 'eval_f1_micro': '0.9677', 'eval_f1_macro': '0.7064', 'eval_runtime': '0.3466', 'eval_samples_per_second': '135.6', 'eval_steps_per_second': '17.31', 'epoch': '4'}                                                                                                                 
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:04<00:00,  4.23s/it]
+{'loss': '0.05233', 'grad_norm': '1.444', 'learning_rate': '3.915e-06', 'epoch': '4.043'}                                                             
+{'loss': '0.05589', 'grad_norm': '0.9119', 'learning_rate': '3.064e-06', 'epoch': '4.255'}                                                            
+{'loss': '0.04525', 'grad_norm': '0.5443', 'learning_rate': '2.213e-06', 'epoch': '4.468'}                                                            
+{'loss': '0.05004', 'grad_norm': '0.696', 'learning_rate': '1.362e-06', 'epoch': '4.681'}                                                             
+{'loss': '0.04859', 'grad_norm': '0.4688', 'learning_rate': '5.106e-07', 'epoch': '4.894'}                                                            
+{'eval_loss': '0.06235', 'eval_f1_micro': '0.9677', 'eval_f1_macro': '0.7064', 'eval_runtime': '0.3494', 'eval_samples_per_second': '134.5', 'eval_steps_per_second': '17.17', 'epoch': '5'}                                                                                                                 
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.44s/it]
+{'train_runtime': '152.3', 'train_samples_per_second': '12.31', 'train_steps_per_second': '1.543', 'train_loss': '0.1511', 'epoch': '5'}              
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 235/235 [02:42<00:00,  1.45it/s]
+Evaluating intent model...
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:00<00:00, 20.93it/s]
+{'eval_loss': 0.11992784589529037, 'eval_f1_micro': 0.9682539682539683, 'eval_f1_macro': 0.7045454545454546, 'eval_runtime': 0.5278, 'eval_samples_per_second': 89.052, 'eval_steps_per_second': 11.368, 'epoch': 5.0}
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:04<00:00,  4.66s/it]
+Intent model saved to: D:\dev-projects\python\grad_ali\Taxi_ai_server\Taxi_ai_server\ml\models\intent
+=== Training NER model ===
+Loading NER dataset...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████████| 197/197 [00:00<00:00, 5033.80it/s]
+[transformers] BertForTokenClassification LOAD REPORT from: aubmindlab/bert-base-arabertv02
+Key                                        | Status     | 
+-------------------------------------------+------------+-
+bert.pooler.dense.bias                     | UNEXPECTED | 
+cls.seq_relationship.weight                | UNEXPECTED | 
+cls.predictions.transform.dense.weight     | UNEXPECTED | 
+cls.seq_relationship.bias                  | UNEXPECTED | 
+bert.pooler.dense.weight                   | UNEXPECTED | 
+cls.predictions.bias                       | UNEXPECTED | 
+cls.predictions.transform.LayerNorm.bias   | UNEXPECTED | 
+cls.predictions.transform.dense.bias       | UNEXPECTED | 
+cls.predictions.transform.LayerNorm.weight | UNEXPECTED | 
+classifier.bias                            | MISSING    | 
+classifier.weight                          | MISSING    | 
+
+Notes:
+- UNEXPECTED:   can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:      those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+Map: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 375/375 [00:00<00:00, 1206.88 examples/s]
+Map: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████| 47/47 [00:00<00:00, 3582.01 examples/s]
+Map: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████| 47/47 [00:00<00:00, 3916.56 examples/s]
+Training NER model...
+{'loss': '1.378', 'grad_norm': '5.351', 'learning_rate': '1.923e-05', 'epoch': '0.2128'}                                                              
+{'loss': '0.7686', 'grad_norm': '3.106', 'learning_rate': '1.838e-05', 'epoch': '0.4255'}                                                             
+{'loss': '0.4609', 'grad_norm': '2.182', 'learning_rate': '1.753e-05', 'epoch': '0.6383'}                                                             
+{'loss': '0.2833', 'grad_norm': '3.088', 'learning_rate': '1.668e-05', 'epoch': '0.8511'}                                                             
+{'eval_loss': '0.1958', 'eval_accuracy': '0.9127', 'eval_runtime': '0.2471', 'eval_samples_per_second': '190.2', 'eval_steps_per_second': '24.28', 'epoch': '1'}                                                                                                                                             
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.88s/it]
+{'loss': '0.1917', 'grad_norm': '1.346', 'learning_rate': '1.583e-05', 'epoch': '1.064'}                                                              
+{'loss': '0.1545', 'grad_norm': '2.163', 'learning_rate': '1.498e-05', 'epoch': '1.277'}                                                              
+{'loss': '0.08718', 'grad_norm': '0.8865', 'learning_rate': '1.413e-05', 'epoch': '1.489'}                                                            
+{'loss': '0.07857', 'grad_norm': '1.311', 'learning_rate': '1.328e-05', 'epoch': '1.702'}                                                             
+{'loss': '0.0552', 'grad_norm': '0.5238', 'learning_rate': '1.243e-05', 'epoch': '1.915'}                                                             
+{'eval_loss': '0.1325', 'eval_accuracy': '0.9743', 'eval_runtime': '0.1368', 'eval_samples_per_second': '343.7', 'eval_steps_per_second': '43.87', 'epoch': '2'}                                                                                                                                             
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.34s/it]
+{'loss': '0.04948', 'grad_norm': '1.05', 'learning_rate': '1.157e-05', 'epoch': '2.128'}                                                              
+{'loss': '0.04623', 'grad_norm': '2.727', 'learning_rate': '1.072e-05', 'epoch': '2.34'}                                                              
+{'loss': '0.04956', 'grad_norm': '4.456', 'learning_rate': '9.872e-06', 'epoch': '2.553'}                                                             
+{'loss': '0.02771', 'grad_norm': '0.1633', 'learning_rate': '9.021e-06', 'epoch': '2.766'}                                                            
+{'loss': '0.04251', 'grad_norm': '1.237', 'learning_rate': '8.17e-06', 'epoch': '2.979'}                                                              
+{'eval_loss': '0.08549', 'eval_accuracy': '0.9743', 'eval_runtime': '0.131', 'eval_samples_per_second': '358.8', 'eval_steps_per_second': '45.8', 'epoch': '3'}                                                                                                                                              
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:04<00:00,  4.42s/it]
+{'loss': '0.03777', 'grad_norm': '0.1321', 'learning_rate': '7.319e-06', 'epoch': '3.191'}                                                            
+{'loss': '0.01124', 'grad_norm': '0.1936', 'learning_rate': '6.468e-06', 'epoch': '3.404'}                                                            
+{'loss': '0.01434', 'grad_norm': '1.251', 'learning_rate': '5.617e-06', 'epoch': '3.617'}                                                             
+{'loss': '0.03109', 'grad_norm': '0.07474', 'learning_rate': '4.766e-06', 'epoch': '3.83'}                                                            
+{'eval_loss': '0.08002', 'eval_accuracy': '0.976', 'eval_runtime': '0.1338', 'eval_samples_per_second': '351.3', 'eval_steps_per_second': '44.84', 'epoch': '4'}                                                                                                                                             
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.41s/it]
+{'loss': '0.01131', 'grad_norm': '0.1167', 'learning_rate': '3.915e-06', 'epoch': '4.043'}                                                            
+{'loss': '0.01512', 'grad_norm': '0.1579', 'learning_rate': '3.064e-06', 'epoch': '4.255'}                                                            
+{'loss': '0.01224', 'grad_norm': '3.257', 'learning_rate': '2.213e-06', 'epoch': '4.468'}                                                             
+{'loss': '0.008102', 'grad_norm': '0.3871', 'learning_rate': '1.362e-06', 'epoch': '4.681'}                                                           
+{'loss': '0.01669', 'grad_norm': '0.1031', 'learning_rate': '5.106e-07', 'epoch': '4.894'}                                                            
+{'eval_loss': '0.08102', 'eval_accuracy': '0.9795', 'eval_runtime': '0.1349', 'eval_samples_per_second': '348.5', 'eval_steps_per_second': '44.48', 'epoch': '5'}                                                                                                                                            
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.99s/it]
+{'train_runtime': '99.99', 'train_samples_per_second': '18.75', 'train_steps_per_second': '2.35', 'train_loss': '0.1632', 'epoch': '5'}               
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████| 235/235 [01:40<00:00,  2.34it/s]
+Evaluating NER model...
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:00<00:00, 66.25it/s]
+{'eval_loss': 0.04422987252473831, 'eval_accuracy': 0.9944547134935305, 'eval_runtime': 0.1056, 'eval_samples_per_second': 445.2, 'eval_steps_per_second': 56.834, 'epoch': 5.0}
+Writing model shards: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:05<00:00,  5.94s/it]
+NER model saved to: D:\dev-projects\python\grad_ali\Taxi_ai_server\Taxi_ai_server\ml\models\ner
+=== Training complete ===

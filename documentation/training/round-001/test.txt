@@ -1,0 +1,64 @@
+(.venv) PS D:\dev-projects\python\grad_ali\Taxi_ai_server\Taxi_ai_server> python ml/scripts/evaluate_models.py
+Evaluating 47 test examples.
+
+============================================================
+INTENT EVALUATION
+============================================================
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 201/201 [00:00<00:00, 355.83it/s]
+
+              precision    recall  f1-score   support
+
+    delivery       0.00      0.00      0.00         0
+    greeting       0.82      0.82      0.82        11
+request_taxi       1.00      1.00      1.00        40
+      thanks       1.00      1.00      1.00        12
+
+   micro avg       0.97      0.97      0.97        63
+   macro avg       0.70      0.70      0.70        63
+weighted avg       0.97      0.97      0.97        63
+ samples avg       0.96      0.97      0.97        63
+
+Per-example predictions:
+
+TEXT: شو وضعكم
+EXPECTED: ['greeting']
+PREDICTED: []
+
+TEXT: لو سمحتوا ابعتولي تكسي من حي البيدر لـ فندق الجمهورية، شكراً، مسا الخير
+EXPECTED: ['request_taxi', 'thanks']
+PREDICTED: ['greeting', 'request_taxi', 'thanks']
+
+TEXT: الله يعطيكم العافية، أنا بـ المشفى المشرق وبدي روح عـ فندق الجمهورية، شكراً عالخدمة
+EXPECTED: ['greeting', 'request_taxi', 'thanks']
+PREDICTED: ['request_taxi', 'thanks']
+
+TEXT: في مجال أطلب تكسي من السوق لـ حي الكراج؟، يعطيكم العافية، مسا الخير
+EXPECTED: ['request_taxi', 'thanks']
+PREDICTED: ['greeting', 'request_taxi', 'thanks']
+
+
+============================================================
+NER EVALUATION
+============================================================
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 6600.97it/s]
+
+              precision    recall  f1-score   support
+
+        DEST       0.97      1.00      0.98        31
+      PICKUP       1.00      0.97      0.98        31
+        TIME       1.00      1.00      1.00         4
+
+   micro avg       0.98      0.98      0.98        66
+   macro avg       0.99      0.99      0.99        66
+weighted avg       0.99      0.98      0.98        66
+
+Entity Precision: 0.9848
+Entity Recall: 0.9848
+Entity F1: 0.9848
+
+NER errors:
+
+TEXT: ممكن تبعتولي سيارة عـ السوق التجاري؟
+TOKENS:
+  السوق: B-PICKUP -> B-DEST
+  التجاري؟: I-PICKUP -> I-DEST

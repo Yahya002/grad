@@ -1,0 +1,68 @@
+(.venv) PS D:\dev-projects\python\grad_ali\Taxi_ai_server\Taxi_ai_server> python ml/scripts/evaluate_models.py
+Evaluating 43 test examples.
+
+============================================================
+INTENT EVALUATION
+============================================================
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████| 201/201 [00:00<00:00, 336.13it/s]
+
+              precision    recall  f1-score   support
+
+    greeting       1.00      0.92      0.96        12
+request_taxi       1.00      1.00      1.00        40
+      thanks       0.92      1.00      0.96        11
+
+   micro avg       0.98      0.98      0.98        63
+   macro avg       0.97      0.97      0.97        63
+weighted avg       0.99      0.98      0.98        63
+ samples avg       0.98      0.98      0.98        63
+
+Per-example predictions:
+
+TEXT: الله يعطيكم العافية
+EXPECTED: ['greeting']
+PREDICTED: ['thanks']
+
+
+============================================================
+NER EVALUATION
+============================================================
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 7492.45it/s]
+
+              precision    recall  f1-score   support
+
+        DEST       0.91      0.97      0.94        32
+      PICKUP       0.94      0.91      0.92        33
+        TIME       1.00      1.00      1.00         8
+
+   micro avg       0.93      0.95      0.94        73
+   macro avg       0.95      0.96      0.95        73
+weighted avg       0.93      0.95      0.94        73
+
+Entity Precision: 0.9324
+Entity Recall: 0.9452
+Entity F1: 0.9388
+
+NER errors:
+
+TEXT: ممكن تبعتولي سيارة عـ كلية الآداب والعلوم الإنسانية؟
+TOKENS:
+  كلية: B-PICKUP -> B-DEST
+  الآداب: I-PICKUP -> I-DEST
+  والعلوم: I-PICKUP -> I-DEST
+  الإنسانية؟: I-PICKUP -> I-DEST
+
+TEXT: ممكن تبعتولي تكسي عـ سوق السمك؟
+TOKENS:
+  سوق: B-DEST -> B-PICKUP
+  السمك؟: I-DEST -> I-PICKUP
+
+TEXT: الله يمسيكم بالخير، شلونكم، التكسي لعندي عـ مستشفى طرطوس الوطني، شكراً، الله يوفقك
+TOKENS:
+  مستشفى: B-PICKUP -> B-DEST
+  طرطوس: I-PICKUP -> I-DEST
+  الوطني،: I-PICKUP -> I-DEST
+
+TEXT: ألف أهلا وسهلا، أنا بـ حي المشروع السادس، بدي سيارة، يعطيكم العافية
+TOKENS:
+  السادس،: I-PICKUP -> I-DEST
