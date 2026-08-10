@@ -1,5 +1,6 @@
 [
-  "taxi",
+  "request_taxi",
   "delivery",
-  "greeting"
+  "greeting",
+  "thanks"
 ]
