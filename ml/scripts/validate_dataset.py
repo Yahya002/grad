@@ -2,13 +2,16 @@ import json
 import sys
 from pathlib import Path
 
-INTENTS_FILE = Path("config/intents.json")
-ENTITIES_FILE = Path("config/entities.json")
-DATASET_FILE = Path("data/raw/master.jsonl")
+
+ML_DIR = Path(__file__).resolve().parent.parent
+
+INTENTS_FILE = ML_DIR / "config" / "intents.json"
+ENTITIES_FILE = ML_DIR / "config" / "entities.json"
+DATASET_FILE = ML_DIR / "data" / "raw" / "master.jsonl"
 
 
 def load_json(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -26,7 +29,7 @@ def validate():
     errors = []
     examples = 0
 
-    with open(DATASET_FILE, "r", encoding="utf-8") as f:
+    with DATASET_FILE.open("r", encoding="utf-8") as f:
 
         for line_number, line in enumerate(f, start=1):
 
@@ -43,7 +46,6 @@ def validate():
                 )
                 continue
 
-            # Required fields
             required = {
                 "text",
                 "intents",
@@ -64,7 +66,6 @@ def validate():
             tokens = item["tokens"]
             ner_tags = item["ner_tags"]
 
-            # Basic types
             if not isinstance(text, str):
                 errors.append(
                     f"Line {line_number}: text must be string"
@@ -92,7 +93,6 @@ def validate():
             ):
                 continue
 
-            # Intent validation
             unknown_intents = set(intents) - allowed_intents
 
             if unknown_intents:
@@ -101,13 +101,11 @@ def validate():
                     f"unknown intents: {unknown_intents}"
                 )
 
-            # Duplicate intents
             if len(intents) != len(set(intents)):
                 errors.append(
                     f"Line {line_number}: duplicate intents"
                 )
 
-            # Token/tag alignment
             if len(tokens) != len(ner_tags):
                 errors.append(
                     f"Line {line_number}: "
@@ -115,7 +113,6 @@ def validate():
                     f"{len(ner_tags)} NER tags"
                 )
 
-            # NER labels
             for tag in ner_tags:
 
                 if tag not in allowed_ner_tags:

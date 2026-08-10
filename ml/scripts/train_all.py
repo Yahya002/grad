@@ -1,32 +1,30 @@
 import subprocess
 import sys
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 def run(script):
+    script_path = SCRIPT_DIR / script
 
-    result = subprocess.run(
-        [sys.executable, script],
+    subprocess.run(
+        [sys.executable, str(script_path)],
         check=True
     )
 
-    return result.returncode
-
 
 def main():
-
     print("=== Validating dataset ===")
-    run("scripts/validate_dataset.py")
+    run("validate_dataset.py")
 
-    print("\n=== Preparing dataset ===")
-    run("scripts/prepare_dataset.py")
+    print("=== Preparing dataset ===")
+    run("prepare_dataset.py")
 
-    print("\n=== Training intent model ===")
-    run("scripts/train_intent.py")
-
-    print("\n=== Training NER model ===")
-    run("scripts/train_ner.py")
-
-    print("\n=== Training complete ===")
+    print("=== Training ===")
+    # run("train_intent.py")
+    # run("train_ner.py")
 
 
 if __name__ == "__main__":
