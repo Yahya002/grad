@@ -1,2 +1,59 @@
-models/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# ML model artifacts
+ml/models/
+
+# Generated / processed datasets
+ml/data/processed/
+
+# Temporary / legacy migration inputs
+ml/data/raw/old_*.json
+ml/data/raw/old_*.jsonl
+
+# Keep the canonical dataset
+!ml/data/raw/master.jsonl
+
+# Training/checkpoint artifacts
+**/checkpoints/
+**/runs/
+**/wandb/
+**/tensorboard/
+
+# Hugging Face / Transformers caches
+.cache/
+huggingface_cache/
+transformers_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python packaging
+*.egg-info/
+dist/
+build/

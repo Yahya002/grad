@@ -1,6 +1,0 @@
-{"text": "يرجى الغاء الطلب", "intent": "cancel", "entities": {"name": null, "phone": null, "from": null, "to": null}}
-{"text": "شلونك", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}}
-{"text": "كيفك", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}}
-{"text": "سلام", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}}
-{"text": "شلونتش", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}}
-{"text": "مرحب", "intent": "greeting", "entities": {"name": null, "phone": null, "from": null, "to": null}}
