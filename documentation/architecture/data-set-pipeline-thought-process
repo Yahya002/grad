@@ -1,0 +1,265 @@
+We need need produce script revised. Need maybe no need personal context. Need likely mention exact files. Need ensure annotation attached prefix: our prior annotate_tokens flawed because entity text find inside final text, and token overlap would mark whole token if entity begins after prefix. We need split token? But desired output has "لمشفى" O and "الحكمة" B. Entity is "مشفى الحكمة" not contiguous as substring? It is substring starting at char after ل, overlaps token "لمشفى", then would mark it B incorrectly. Need robust tokenization/annotation that recognizes prefix attached and excludes it. Could generate tokens based on whitespace, and for each entity span, map entity words to token words after optional prefix. For "لمشفى الحكمة", location entity phrase "مشفى الحكمة"; token "لمشفى" should O, "الحكمة" B. But if location itself starts with "الإنشاءات" and l prefix -> "للإنشاءات", entity "الإنشاءات" is substring after prefix. Need align words by stripping one prefix. For `ع` connected: `عالواجهة`, entity `الواجهة`, strip `ع`; `بالمشروع`, entity `المشروع`. `للمشروع` strip `ل`. But if location starts "ل..." e.g "لؤلؤة"? Our simplistic prefix detection can be ambiguous. Fine for prepositions generated. Also "ل" and "ع" forms maybe `ع` directly attached. Need templates comprehensive approved? We don't have exact A-D from skipped context. We have known families. User says do this = revise script. Need include greetings preceding only, please before/after request or standalone, no greeting latest, thanks latest perhaps yes. "politeness intent nonconsequential". Need perhaps thanks after request. Need all templates we previously listed plus destination first. Also maybe no "على" because prepositions specifically ع ل ب attached. User said "prepositions ع and ل and ب directly connected to next word". We should use attached forms. For pickup, `ب` perhaps "بالمشروع" can be pickup. We need all variants. We can create structured template list with slots and annotation roles. Bare location examples should maybe not be included in NER training if LOCATION tags same. Since LOCATION resolves state context. Great.
+
+Need perhaps script generates both complete and partial and bare responses. Need not generate contradictory NER. Bare all location -> LOCATION. Great.
+
+Need not annotate request intents? Standalone greetings etc. `thanks` and `politeness` separate. Could include request with politeness. Greeting can be alone or precede request. No greeting after. Thanks perhaps after request. Please can precede/succeed request. Could appear sentence on its own. Good.
+
+Need "please" variations. Need exact file path maybe language components is data/language_components. Could be existing structure perhaps data/raw? We'll state adjust path. Need maybe use JSON arrays.
+
+Need avoid huge Cartesian explosion. Current script would create 20*19* many ~ potentially 20*19*21*? = maybe 50k. With location categories likely hundreds, could be millions. Need generation cap / balanced sampling. Better pipeline uses configurable `MAX_COMPLETE_REQUESTS`, random sample combinations. But user wants "all kinds variations"; can generate all template combinations with random phrase components, but if greetings/please arrays, combinatorial explosion. Need deterministic. Could generate all structural templates, and sample component variants per structure. Yet training data can be huge. We can have `MAX_EXAMPLES` configurable. Need maybe not overcomplicate.
+
+Let's answer with updated script, explicitly key changes. Need perhaps include validation. We can include `--output`? Keep simple.
+
+Need code in final. Since coding task no web. Ensure no ids weird. Let's draft robust script. Need use Python standard lib.
+
+We need exact annotations:
+
+* "بدي تكسي من كافيه راية لمشفى الحكمة": tokens; location spans should be "كافيه راية", "مشفى الحكمة", tags B/I.
+* For prefix-attached destination: token "لمشفى" O, then "الحكمة" B. But this is weird because entity span "مشفى الحكمة" isn't token-aligned. We can make tokenizer split prefixes? User earlier asks can Arabic understand connected prefix as separate? They want annotated like examples with `لـ` separate, but also said no cases "لـ مشفى", and connected prefix. Their examples show `لـ` token separate, but now they want connected prefix. They asked "can we make arabert understand connected prefix as separate?" Then settled location architecture. For source dataset, they want tokens likely preserve connected prefix? We need decide. If `لمشفى` token is one token and entity is `مشفى`, BIO can't annotate substring. BIO word-level cannot annotate sub-token portion. We need either tokenization split into prefix as separate token: ["ل", "مشفى", "الحكمة"] while text remains "لمشفى الحكمة". Is that what they want? "make arabert understand the connected prefix as separate" likely yes. So generated dataset tokens should separate prefix in token list even though text has it connected. This is crucial. Their earlier examples with `لـ` separate are old representation. We can tokenize attached prefixes into separate tokens for annotation: `لمشفى` -> ["ل", "مشفى"], `للمشروع` -> ["ل", "للمشروع"? Wait Arabic article: "ل"+"المشروع" produces "للمشروع"; split preposition as `ل`, remainder `المشروع`. For `بالمشروع`: `ب`, `المشروع`; `عالواجهة`: `ع`, `الواجهة`. For `لمشفى`: `ل`, `مشفى`. This yields entity B-LOCATION on remainder. Good. But text tokens in existing dataset may expect prefixes as attached? They asked "can we make arabert understand connected prefix as separate?" We can explicitly create "logical tokens" separate. Yet HuggingFace tokenizer will further subword tokenize. Fine.
+
+Need support prefixes only when generated by us. Tokenizer function can split one-character prefixes if token starts with them. But danger "بدي" starts ب; don't split because preposition `ب` could be part word. Need only split if token matches prefix + a location word? Since tokenization happens with entity spans, we can construct token sequence with prefix token separately based on entity occurrence. For each location phrase, we can represent as prefix+location at generation. We can create a special `RenderedLocation` with text and tokens. Simpler: generate text then a custom `tokenize_with_prefixes(text, entity specs)` that knows each location's rendered prefix and exact entity words. But if entity is multiword and prefix attached to first word, create token `prefix`, then first location word, rest. We need know prefix from template. We can build template as segments rather than text. This is robust.
+
+Maybe define `LocationSlot(text, role, prefix=None, preceding connector)` and render:
+
+* `render_location(location, prefix=None)` returns text `prefix+location`
+* `tokenize_annotated` can split prefix from first word for location slot. But if `prefix=None`, ordinary location words.
+  We need combine arbitrary sentence parts and mark entity spans. Could use placeholders in final text then tokenize and annotate with a mapping of rendered token labels. Better build `Part` list: `TextPart`, `LocationPart(prefix)`, and render each to text and tokens. But punctuation on greeting etc.
+
+We can keep simpler: use template strings with markers `{PICKUP}` etc, render with prefixes encoded like `ل{DEST}`. Then after rendering, use regex to locate placeholders? We replace placeholders with location strings and store entity span with prefix length. Then custom tokenization can use character spans and split tokens if entity starts within token: token boundaries around entity. This can split token `لمشفى` into `ل` and `مشفى`. Great. But we also need avoid splitting "بدي" if no entity span starts inside. Algorithm: tokenize by whitespace, for each token, if entity span starts/ends inside token, split token at span boundaries. Then assign BIO to entity piece tokens. For `لمشفى`, entity span starts after `ل`, so split `l` and `مشفى`; good. For `للمشروع`, split `ل` and `المشروع`. If location text itself includes punctuation? Our locations likely no punctuation. Fine. If entity ends before punctuation attached? E.g `مشفى الحكمة؟`, location span excludes ? and token `الحكمة؟` should split `الحكمة`, `؟` perhaps. Existing examples retain punctuation attached to token (`طرطوس؟`). Their NER tag I-DEST on token with punctuation. So we can leave punctuation attached to entity token if overlap. Our split logic might split at entity boundaries only; if end before `؟`, token becomes `الحكمة` + `؟`, changing format. To preserve punctuation attached, need not split end if punctuation outside entity? But attached prefix only starts inside token. For prefix, split at start; no need split end. Then `الحكمة؟` remains whole and gets B. Good. So only split token at entity start if entity starts within token; not at end. If an entity ends inside a token (rare because location string ends before punctuation), don't split. Then assign label to whole token. Great.
+
+But if prefix on first word and location itself multiword, find span. Need BIO assign to tokens overlapping span. For token `لمشفى`, after split at entity start, token `مشفى` overlaps and B. Great.
+
+Need perhaps if two entities adjacent? no.
+
+Need handle prefix `ب` on pickup: `بالمشروع` -> `ب`, `المشروع`. Good. `ع` can be `عالواجهة`. `ل` can `لمشفى`, `للمشروع`. Need template variants using `ب{PICKUP}` perhaps pickup "بكافيه راية" natural? "بكافيه راية" maybe means at café. But user specifically said prepositions ع, ل, ب. Need all variations we can think of. For taxi request, pickup can be "من {pickup}", "من عند", "من قدام", "من جنب", "ب{pickup}", "ع{pickup}" perhaps `عكافيه` is colloquial, "بكافيه راية" maybe natural. Destination `ل{dest}`, `لعند {dest}`, `ب{dest}`? "بمشفى الحكمة" doesn't mean to. "ع{dest}" perhaps "عالمشفى" means at/on, could be destination colloquially. User explicitly said prepositions "ع" "ل" "ب" directly connected to next word; likely they want variation like "بدي تكسي عالإنشاءات", "بدي تكسي للمشفى", "بدي تكسي بالمشروع"? Their original examples include `بـ المشروع السادس` as pickup ("يجي لعندي بـ المشروع السادس"), where `ب` indicates location. So we should use `ب{pickup}` as pickup. `ع{pickup}` as pickup too. For destination, `ع{dest}` maybe "عالجامعة" perhaps headed to? Could be. `ب{dest}` maybe not destination; better not overgenerate semantically wrong.
+
+Need include "لعند" where prefix is `ل` attached to "عند", then location separate: `لعند {dest}`. The user's rule "prepositions ع and ل and ب directly connected to next word" means `لعند` attached to `عند`, not location. Good.
+
+Could include `عال`? `ع` + `ال` = `عال`. For `ع{dest}`, if dest starts `ال`, output `عال...`, good.
+
+Need "بـ" no, only connected `ب`. So no "بـ". Also no "لـ". Need no "ل مشفى".
+
+Need sentence templates. We can define:
+Complete:
+
+* request من pickup لdest
+* request من pickup لعند dest
+* request من pickup إلى dest
+* request من pickup عdest
+* request من عند pickup لdest
+* request من قدام pickup لdest
+* request من جنب pickup لdest
+* request بpickup لdest? "بدي تكسي بكافيه راية لمشفى" perhaps "بكافيه" = at café. Maybe use "ب{pickup} ل{dest}" as pickup location.
+* request عpickup لdest
+* request من pickup لdest
+* destination first:
+  request لdest من pickup
+  request لعند dest من pickup
+  request عdest من pickup
+  request إلى dest من pickup
+* "request from pickup و to dest"? Need maybe "من pickup ووديني لdest", "من pickup على dest". Could add "من pickup، بدي روح لdest", "من pickup وصلني لdest".
+* "request pickup، destination" maybe not.
+
+Need maybe templates with "ياخدني/يوصلني/يوديني" but if request phrase already "بدي تكسي", okay:
+`بدي تكسي ياخدني من pickup لdest`
+`بدي سيارة تجي عpickup وتوصلني لdest`
+`ممكن سيارة تجي عpickup وتوصلني لdest`
+`بدي حدا يجيبلي تكسي من pickup لdest` maybe.
+
+Partial:
+pickup-only:
+
+* `request من pickup`
+* `request من عند pickup`
+* `request من قدام pickup`
+* `request عpickup`
+* `request بpickup`
+* `request تجي عpickup` perhaps
+  dest-only:
+* `request لdest`
+* `request لعند dest`
+* `request عdest`
+* `request إلى dest`
+* `request توصلني لdest`
+  No entities.
+
+Politeness can be before or after request phrase, not necessarily around entire sentence? User said can either precede or succeed taxi request phrase, or come sentence on its own. So for complete sentence, please before request phrase and after request phrase, but if greeting preceding, structure greeting + please + request; request + please; greeting + request + please. "please" could be after greeting? okay.
+
+Greeting can be alone or precedent, never latest. We can ensure.
+
+Thanks can be after request, and standalone. They said no greeting comes latest, not necessarily thanks. Could have greeting + request + thanks.
+
+Need no time entity but maybe no time templates. We can include time-like text as O? User says no TIME entity, but do we want generate sentences containing time? They earlier had examples with time. If no TIME entity, maybe yes, to make model ignore it. But they asked pipeline based language components and all variations. We don't have time component. We could add optional `TIME_PHRASES`? They said no TIME entity at all, not no time expressions. But no source file. Don't invent. Better no time generation now. We can say if later we want robustness against time text, add `time_phrases.json` as O, but not part now.
+
+Need maybe write file with counts and validation that every NER tag valid. Also avoid duplicates. Need maybe separate output files by category? Could output combined. They have master pipeline. Perhaps generator should write `taxi_generated.jsonl`, then combine into master later. Good.
+
+Need include state response examples with bare location, intent maybe `request_taxi`? Is that appropriate? Since user utterance alone in state machine. Intent classifier may output unknown. If we put `request_taxi`, we're training it to classify bare location as request_taxi, which is perhaps okay but could make model treat any location as new taxi request in idle, undesirable. Better **do not include bare location responses in intent training as `request_taxi`** if the same text could be arbitrary location mention. But our unified dataset has intents array. What should bare follow-up example intent be? The state machine spec says classifier runs every message. It can return no intent or unknown. If no intent label exists, maybe use `unknown`? But then training multi-label classifier to predict unknown for bare location, while state-aware NER picks location. We need decide. Existing intents config may have unknown? The prior code had unknown. The spec has intents maybe greeting/thanks/request_taxi/cancellation. User wants politeness. If unknown exists, could label bare location `unknown`. But the intent model is multi-label; if unknown is a class, perhaps. However user says NER should extract location, state machine should accept. We can label bare location with `[]`? The classifier output can't produce empty maybe threshold. Training supports no labels? BCE all zeros, possible, but then inference likely no intents. But their existing format perhaps intents array and likely unknown. We need avoid making assumptions. We can parameterize `BARE_LOCATION_INTENT = []` or `"unknown"`. Maybe user wants pipeline now; can set bare state replies as `["unknown"]` if current intent set includes unknown. But if we change spec later, need update. Since they asked updated specs to Windsurf, perhaps `unknown` is existing. Could include `unknown` as state response? Yet if idle and user says "ساحة البريد", state machine says no entities? Actually if idle, no request_taxi, reply not understood. Good. If waiting state, ignore intent. So unknown is okay.
+
+But NER LOCATION examples can be used. The same location in complete requests gets request_taxi. Fine.
+
+Need perhaps `politeness` intent examples. Good.
+
+Potential issue: `greetings.json` could have punctuation already. We should not blindly add `،`. Need `join_prefix`. Could clean punctuation? We can define `join_parts` and not duplicate comma. For greeting "صباح الخير" no punctuation. If already "مرحبا،" we can strip trailing punctuation. Better normalize only whitespace and punctuation separators. We don't want modify component content. Use `clean_component` strips whitespace and trailing `،,.؟!`. Then join with `،`. But maybe "يعطيكم العافية" no issue. Fine.
+
+Need maybe `thanks` are "يسلمو" etc. Good.
+
+Need code perhaps 400 lines, but desired oververbosity 4. User asked "do this" likely wants code. We can provide complete script, not explain too much.
+
+Let's formulate. Also perhaps need include config `MAX_COMPLETE_PER_PAIR` to avoid explosion. But if we generate every request template × every greeting × every please × every thanks, huge. We can make `VARIANTS_PER_TEMPLATE = 2` and use seeded choices. Yet user asked all kinds variations, not all combinations. Better generate all structural templates and sample optional component combinations. For each base template, generate:
+
+* plain
+* greeting before
+* please before
+* please after
+* greeting+please before
+* request+thanks
+* greeting+request+thanks
+* greeting+please+request+thanks
+  This uses one random greeting/please/thanks per base template, not all component combinations. But then if greeting file has 10, only one used per template. Across templates random variety but maybe not exhaustive. Could generate Cartesian among component arrays but cap. We can define `OPTIONAL_VARIANTS_PER_BASE = 3` per structural template per optional pattern, selecting random component strings. That creates coverage. Need deterministic. Or generate all components for greeting-only, please-only, thanks-only maybe. If 20 templates * 20 location pairs * 8 optional patterns * 10 = 32k. Fine. But location pairs maybe 1000 -> 1.6m. Need cap.
+
+Could create `MAX_COMPLETE_EXAMPLES = 50000`, `MAX_PARTIAL = 20000`, etc. The generator collects then dedups, random. But memory okay up to 100k. Better use combinations sampled.
+
+Maybe user's locations file could have 200 entries. 200*199=40k pairs. 25 structural templates * 8 = 8m. Too much. We need bounded generation. Set `MAX_COMPLETE_BASES = 10000` pairs/templates perhaps. But "all kinds variations" means ensure every structural template is represented, then sample location pairs. We can generate per template with random pairs until max. We can guarantee each template at least one example. But user might want all locations paired? Not necessary.
+
+Let's define:
+
+* `MAX_COMPLETE_EXAMPLES = 100_000`
+* `MAX_PICKUP_ONLY = 20_000`
+* `MAX_DEST_ONLY = 20_000`
+* `MAX_REQUEST_ONLY = 2_000`
+* `MAX_BARE_LOCATION = all locations * 1` (one each; annotation LOCATION)
+* `MAX_OPTIONAL_VARIANTS_PER_BASE = 2` perhaps.
+  But user might expect dataset maybe 100k. Fine.
+
+Could make `SEED=42`.
+
+However, no need to include `MAX` if we can use `random.sample` pairs and templates. Let's create `iter_location_pairs` random sample without all. Use `MAX_COMPLETE_BASES` number of (pickup,dest,template) combinations. Then for each base, generate 8 variants. If max complete examples 100k, base count 12.5k. But need every template. We'll create all structural templates and sample pairs per template. `TARGET_COMPLETE_BASES = 10_000`. `OPTIONAL_VARIANTS = 8` => 80k.
+
+Need ensure greetings and please optional variants. Could choose random components independently per variant. Good.
+
+Need include punctuation maybe no question marks? Dataset examples user provided have question marks. Could add punctuation variants, but text examples have ? for requests. We can add punctuation endings maybe `؟`, none. But if location at end with `؟`, NER annotation should include punctuation attached. Our span starts okay. We can generate two versions. Need no Arabic punctuation issues. Maybe use `PUNCTUATION_VARIANTS = ["", "؟"]` for question-like requests. This doubles. But "بدي تكسي..." could be no question mark. Good.
+
+Need templates as `Template` with semantic slot markers and rendering. Let's implement a small function where template is a format string and location placeholders replaced by rendered prefix. We need locate entity spans. We can use markers `__PICKUP__` then replace. Need avoid markers in final. Use `RenderedSentence` with text and spans.
+
+Simpler:
+
+```
+def render_template(template, pickup, dest):
+  text = template.replace("{PICKUP}", pickup).replace("{DEST}", dest)
+```
+
+But to attach prefix, template uses `{L_DEST}` etc. Need mapping:
+
+* `{PICKUP}` plain
+* `{PICKUP_L}` -> `ل` + pickup
+* `{PICKUP_B}` -> `ب` + pickup
+* `{PICKUP_A}` -> `ع` + pickup
+* `{DEST_L}` -> `ل` + dest
+* `{DEST_A}` -> `ع` + dest
+* `{DEST}` plain
+  Then we need spans of location only. We can render with placeholders using regex: each placeholder replaced by prefix+location and record start+prefix length. Use function sequentially.
+
+But templates like `لعند {DEST}` should not attach to location. That's plain `{DEST}` preceded by literal `لعند `. Good.
+
+Need "ع" prefix when location starts "ال": `ع` + "ال" = "عال". Good. `ل` + "ال" = "لال"? Wait Arabic orthography: `ل` + `ال` => `لال...`? Actually "لل" + noun, e.g. "للبيت" (ل + البيت) results `للبيت`, because definite article al has "ا" elided? Let's see: `ل` + `البيت` = `للبيت`, not `لالبيت`. We need special attachment: if location starts `ال`, `l + location` should be `لل` + rest after "ال" => `للبيت`; `b + location` => `بالبيت`; `ع + location` => `عالبيت`. So `attach_prefix` must handle:
+
+* `ل` + `الXYZ` -> `للXYZ`
+* `ب` + `الXYZ` -> `بالXYZ`
+* `ع` + `الXYZ` -> `عالXYZ`
+  For nondefinite, prefix + phrase.
+  For `ل` + `مشفى` -> `لمشفى`.
+  Great.
+
+But `لعند` is prefix + "عند" not location. Fine.
+
+Need `attach_prefix` for phrase with multiple words: prefix attaches to first word only, e.g. `ل` + "حي المعلمين" => `لحي المعلمين`; `ب` + "حي المعلمين" => `بحي المعلمين`; `ع` + "حي المعلمين" => `عحي المعلمين`. If first word starts `ال`, handle.
+
+Need location span in rendered string. We know prefix length. If `prefix` and first word, rendered = attach_prefix(prefix, location), and location span isn't simply after prefix length if `l` + `ال` transforms to `لل` + rest: original location `البيت` rendered `للبيت`; location substring `البيت` does not exist contiguously. So we can't record exact substring. Instead we can mark tokens by generating logical token pieces: prefix token and location tokens. This is better. For text, render attached. For tokens, build from template parts.
+
+Could define template as list of literal/slot parts and render text and token labels simultaneously. But optional greetings etc also. Let's do a `Segment` class? We can make `render(parts)` where parts are strings or `LocationSlot`.
+
+Maybe easiest: templates as format strings with placeholders; after rendering text, generate tokens using whitespace, then split the first token of each location based on known prefix. For `للبيت`, location "البيت", prefix `ل`; we can remove first `l` from rendered first token to get `البيت`. For `بالمشروع`, remove `b`; for `عالواجهة`, remove `3ain`; for `لمشفى`, remove `l`. So custom `tokenize_and_annotate(text, entities)` can be given each entity with `prefix`. It can locate the rendered entity phrase logically by searching token sequence after stripping prefix from first token. But if no prefix, easy.
+
+We can create `EntitySpan` with `text`, label, prefix, occurrence order. For each entity, during tokenization:
+
+* tokens = text.split()
+* find a sequence of tokens matching location words. For prefixed first token, candidate first token must equal rendered_first, and after stripping prefix should equal location_first. For definite article special:
+
+  * `rendered_first = attach_prefix(prefix, firstword)`.
+* subsequent words exact.
+* find sequence in order, assign B/I.
+  This is robust. If punctuation appended to final location token, we need compare normalized punctuation. Could strip punctuation from token for matching, but retain token. For first token with prefix and punctuation, strip punctuation too. Use regex remove leading/trailing punctuation `،؟!.,`. But Arabic location could contain punctuation? unlikely.
+* We can search from previous index.
+* For unprefixed, first token should match first location word, punctuation normalized.
+* For `لعند {DEST}`, no prefix; location tokens normal.
+  This avoids char spans entirely.
+
+Need entity representation `RenderedEntity(label,text,prefix)`. We can annotate with `prefix` used in template.
+
+Need templates with placeholders:
+`{REQUEST} من {PICKUP} {DEST_L}` etc. But rendering all `REQUEST` etc. We need build `render_template(template, request, pickup,dest)`, using regex placeholders. Could parse placeholders and render. Use `re.sub` and create entity specs. For each placeholder:
+
+* `PICKUP`: prefix None
+* `PICKUP_L`: prefix "ل"
+* `PICKUP_B`: "ب"
+* `PICKUP_A`: "ع"
+* `DEST`: None
+* `DEST_L`: "ل"
+* `DEST_B`: "ب"
+* `DEST_A`: "ع"
+  But should we include DEST_B? Maybe no. User said prepositions all directly connected; perhaps "بحي المعلمين" as destination? Not semantically "to". Better not.
+* `PICKUP_L` could be `لحي` as "to neighborhood" but pickup role wrong. Not use.
+* `PICKUP_A`, `PICKUP_B`.
+  Need "عال..." etc.
+
+Need templates maybe:
+
+```
+COMPLETE_TEMPLATES = [
+ "{REQUEST} من {PICKUP} {DEST_L}",
+ "{REQUEST} من {PICKUP} لعند {DEST}",
+ "{REQUEST} من {PICKUP} إلى {DEST}",
+ "{REQUEST} من {PICKUP} {DEST_A}",
+ "{REQUEST} من عند {PICKUP} {DEST_L}",
+ "{REQUEST} من قدام {PICKUP} {DEST_L}",
+ "{REQUEST} من جنب {PICKUP} {DEST_L}",
+ "{REQUEST} {PICKUP_A} {DEST_L}", # e.g. "بدي تكسي عكافيه راية لمشفى"
+ "{REQUEST} {PICKUP_B} {DEST_L}",
+ "{REQUEST} ياخدني من {PICKUP} {DEST_L}",
+ "{REQUEST} ياخدني من {PICKUP} لعند {DEST}",
+ "{REQUEST} يوديني من {PICKUP} {DEST_L}",
+ "{REQUEST} يوصلني من {PICKUP} {DEST_L}",
+ "{REQUEST} تجي {PICKUP_A} وتوصلني {DEST_L}",
+ "{REQUEST} تجي {PICKUP_B} وتوصلني {DEST_L}",
+ destination first:
+ "{REQUEST} {DEST_L} من {PICKUP}",
+ "{REQUEST} لعند {DEST} من {PICKUP}",
+ "{REQUEST} إلى {DEST} من {PICKUP}",
+ "{REQUEST} {DEST_A} من {PICKUP}",
+ "{REQUEST} {DEST_L}، من {PICKUP}" maybe punctuation weird.
+ "{REQUEST} {DEST_L}، وبعدين من {PICKUP}" semantically odd.
+```
+
+Maybe `ع{DEST}` destination-first is plausible: "بدي تكسي عالمشروع السادس من كافيه راية". Yes.
+
+"من {PICKUP} ع{DEST}" maybe "من كافيه راية عالواجهة" means to? Syrian colloquial could. Good.
+
+Need "ب" prefix: pickup "ب{PICKUP}" and maybe "بدي سيارة بالمشروع السادس لـ حي..." User example `يجي لعندي بـ المشروع السادس` has b prefix with space due orthography, but user explicitly wants attached. So `بالمشروع السادس`. Could template `"{REQUEST} {PICKUP_B} {DEST_L}"` -> "بدي تكسي بكافيه راية لمشفى". Good.
+
+Need perhaps pickup with `ع` but not `من`: "بدي تكسي عكافيه راية لمشفى الحكمة". Fine.
+
+Need no `ل` and `ع` separated. The `لعند` is connected l+aind, as user requested.
+
+Need standalone request, partial.
+
+Need state bare location examples: label LOCATION, intents perhaps `["unknown"]`. But if unknown not in config, generator shouldn't assume. Could set `STATE_REPLY_INTENTS = []` in config. In JSONL, empty intents is okay. Their schema likely expects array, not necessarily nonempty. For training, an empty label vector might be handled. However they may validate intents against config; no intent means okay. I think use `[]` to reflect no intent. But their intent model training may not handle all-zero examples? It can, but if they expect at least one intent perhaps. Could exclude bare location from intent dataset and put into a separate `state_replies.jsonl`, as earlier proposed. This is actually better: NER training can include it, but intent training? Their unified format requires intents. We can set `intents: []`, but their `validate_dataset.py` may allow? We don't know. Safer to create `state_location_replies.jsonl` separately and later combine with a chosen intent label after spec update. But user asked unified pipeline maybe wants annotations "like before". Could have `intents: ["unknown"]`. Since code already uses unknown. But spec says IF intent cancellation etc. Not necessarily unknown. Existing config likely has unknown. Let's use configurable `BARE_LOCATION_INTENT = "unknown"` at top, easy change. It makes state replies not request_taxi. Good.
+
+Need standalone politeness intent. Good.
+
+Need output maybe one file. Also write `generation_report.json`? Nice. But no need.
+
+Need validate BIO. Need ensure no duplicate text+different tags? For bare location, same text with `unknown` and location tag only. Complete location repeated with same text maybe if different template variants produce same? Dedup exact text+intents+tags.
+
+Need maybe `LOCATION` config? The script assumes. Good.
+
+Let's provide "replace previous script with this". Need maybe if file names differ. Let's craft concise intro and code. Ensure no weird citation.

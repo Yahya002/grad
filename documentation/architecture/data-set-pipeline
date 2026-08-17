@@ -1,0 +1,1566 @@
+Yes. With those constraints, I would change the generator design substantially. In particular, **the generated surface text and the annotation tokenizer must be treated as two separate stages**.
+
+## 1. Preposition rule
+
+For the generated Arabic text:
+
+* `ل` → attached: `لمشفى`, `للمشروع`, `لشارع`
+* `ب` → attached: `بالمشروع`, `بكافيه`
+* `ع` → attached: `عالمشروع`, `عالكراج`
+
+We should **never generate**:
+
+```text
+لـ مشفى
+بـ المشروع
+عـ الواجهة
+```
+
+The existing examples you showed contain those forms, but the new generator should follow your new convention.
+
+So templates become:
+
+```text
+بدي تكسي من {PICKUP} ل{DEST}
+بدي تكسي من {PICKUP} لعند {DEST}
+بدي تكسي من {PICKUP} على {DEST}
+بدي تكسي من {PICKUP} ع{DEST}
+
+بدي تكسي من {PICKUP} بالمشروع
+بدي تكسي يجي ع{PICKUP}
+```
+
+However, we need to be careful about **whether `{DEST}` itself begins with `ال`**, because:
+
+```text
+ل + مشفى = لمشفى
+ل + الواجهة = للواجهة
+ب + المشروع = بالمشروع
+ع + المشروع = عالمشروع
+```
+
+So the generator should have a small Arabic attachment function rather than simply doing:
+
+```python
+"ل" + location
+```
+
+For example:
+
+```text
+{prefix} = ل
+{location} = مشفى الحكمة
+→ لمشفى الحكمة
+
+{prefix} = ل
+{location} = الواجهة البحرية
+→ للواجهة البحرية
+```
+
+That is important for producing natural data.
+
+---
+
+# 2. `please` needs to be its own component
+
+I agree with adding a `please.json`.
+
+I'd treat it as:
+
+```text
+{PLEASE} = optional
+```
+
+but with **position controlled by the template**, not randomly inserted anywhere.
+
+You described three cases:
+
+### A. Please before request
+
+```text
+إذا ما في إزعاج بدي تكسي من ...
+ممكن بدي تكسي من ...
+لو سمحت بدي تكسي من ...
+إذا بتريد بدي تكسي من ...
+دخيلك بدي تكسي من ...
+```
+
+Depending on what is actually in your JSON, the generator can use the exact colloquial phrases rather than us hardcoding them.
+
+### B. Please after request
+
+```text
+بدي تكسي من ... لو سمحت
+بدي تكسي من ... إذا بتريد
+بدي تكسي من ... إذا ما في إزعاج
+```
+
+### C. Please as its own sentence
+
+This needs an important distinction.
+
+For example:
+
+```text
+لو سمحت، بدي تكسي من ...
+```
+
+is still one taxi request.
+
+But:
+
+```text
+لو سمحت
+```
+
+**cannot logically have `request_taxi` as its intent** unless your intent taxonomy has a separate `politeness` intent.
+
+So for standalone please examples, I need you to decide whether you want them in this dataset at all.
+
+If you do, I recommend:
+
+```json
+{
+  "text": "لو سمحت",
+  "intents": ["unknown"],
+  ...
+}
+```
+
+rather than falsely labeling it `request_taxi`.
+
+Alternatively, if your intent classifier has/should have a `please`/`politeness` intent, we can use that.
+
+---
+
+# 3. Greeting behavior
+
+I would make greeting fundamentally different from `please`.
+
+### Greeting alone
+
+Your generator should produce:
+
+```text
+مرحبا
+أهلا
+هلا
+السلام عليكم
+صباح الخير
+مساء الخير
+...
+```
+
+with:
+
+```json
+"intents": ["greeting"]
+```
+
+and no entities.
+
+### Greeting before taxi request
+
+```text
+مرحبا، بدي تكسي من ...
+أهلا، بدي تكسي من ...
+هلا، بدي تكسي من ...
+صباح الخير، ممكن تكسي من ...
+```
+
+with:
+
+```json
+"intents": ["request_taxi", "greeting"]
+```
+
+### Greeting after taxi request?
+
+You said **"precedent"**, so I would **not generate post-request greetings** unless you specifically want them.
+
+For example, don't systematically generate:
+
+```text
+بدي تكسي من ...، مرحبا
+```
+
+because that's not a natural pattern we need to teach the model.
+
+---
+
+# 4. Thanks should also be compositional
+
+Your existing examples already show this:
+
+```text
+مرحبا، ... بدي تكسي ...، يسعد قلبك
+```
+
+and:
+
+```text
+... بعد ساعة، يعطيك العافية
+```
+
+So I'd allow:
+
+```text
+{GREETING} + {REQUEST} + {THANKS}
+```
+
+but also:
+
+```text
+{GREETING} + {REQUEST}
+{REQUEST} + {THANKS}
+```
+
+and standalone:
+
+```text
+{THANKS}
+```
+
+For example:
+
+```text
+مرحبا، بدي تكسي من فندق البحر لحي المعلمين، يعطيك العافية
+```
+
+would be:
+
+```json
+"intents": ["request_taxi", "greeting", "thanks"]
+```
+
+while:
+
+```text
+يعطيك العافية
+```
+
+would be:
+
+```json
+"intents": ["thanks"]
+```
+
+---
+
+# 5. Main request templates
+
+I would now use several **grammatical families**, rather than simply swapping words.
+
+### Family A — standard
+
+```text
+{REQUEST} من {PICKUP} ل{DEST}
+{REQUEST} من {PICKUP} لعند {DEST}
+{REQUEST} من {PICKUP} إلى {DEST}
+{REQUEST} من {PICKUP} ع{DEST}
+```
+
+Where `{REQUEST}` might produce:
+
+```text
+بدي تكسي
+بدي سيارة
+ممكن تكسي
+ممكن سيارة
+محتاج تكسي
+محتاج سيارة
+دبرولي تكسي
+دبرولي سيارة
+أمنولي تكسي
+أمنولي سيارة
+```
+
+assuming those are actually present/approved in your language components.
+
+---
+
+### Family B — "take me"
+
+```text
+{REQUEST} ياخدني من {PICKUP} ل{DEST}
+{REQUEST} ياخدني من {PICKUP} لعند {DEST}
+{REQUEST} ياخدني من {PICKUP} إلى {DEST}
+
+{REQUEST} يوديني من {PICKUP} ل{DEST}
+{REQUEST} يوديني من {PICKUP} لعند {DEST}
+
+{REQUEST} يوصلني من {PICKUP} ل{DEST}
+{REQUEST} يوصلني من {PICKUP} لعند {DEST}
+```
+
+---
+
+### Family C — destination first
+
+```text
+{REQUEST} ل{DEST} من {PICKUP}
+{REQUEST} لعند {DEST} من {PICKUP}
+{REQUEST} إلى {DEST} من {PICKUP}
+{REQUEST} ع{DEST} من {PICKUP}
+```
+
+This is useful for NER because the model can't simply learn:
+
+> first location = pickup, second location = destination.
+
+---
+
+### Family D — pickup phrasing
+
+```text
+{REQUEST} من {PICKUP} ل{DEST}
+{REQUEST} من عند {PICKUP} ل{DEST}
+{REQUEST} من قدام {PICKUP} ل{DEST}
+{REQUEST} من جنب {PICKUP} ل{DEST}
+```
+
+I would only include the latter three if they are actually natural in your target dialect.
+
+---
+
+# 6. Partial requests
+
+These are **very important for your state machine**.
+
+### Pickup only
+
+```text
+{REQUEST} من {PICKUP}
+{REQUEST} من عند {PICKUP}
+{REQUEST} من قدام {PICKUP}
+{REQUEST} من جنب {PICKUP}
+```
+
+Expected:
+
+```json
+{
+  "intents": ["request_taxi"],
+  "tokens": [...],
+  "ner_tags": [... B-PICKUP ...]
+}
+```
+
+### Destination only
+
+```text
+{REQUEST} ل{DEST}
+{REQUEST} لعند {DEST}
+{REQUEST} إلى {DEST}
+{REQUEST} ع{DEST}
+```
+
+Expected:
+
+```json
+{
+  "intents": ["request_taxi"],
+  "tokens": [... B-DEST ...],
+  "ner_tags": [... B-DEST ...]
+}
+```
+
+### No location
+
+We should also deliberately generate:
+
+```text
+{REQUEST}
+```
+
+which gives:
+
+```json
+{
+  "intents": ["request_taxi"],
+  "tokens": [...],
+  "ner_tags": ["O", "O", ...]
+}
+```
+
+This directly tests your:
+
+```text
+idle → waiting_for_pickup
+```
+
+transition.
+
+---
+
+# 7. Annotation
+
+I would preserve exactly your existing dataset format:
+
+```json
+{
+  "text": "...",
+  "intents": ["request_taxi"],
+  "tokens": [...],
+  "ner_tags": [...]
+}
+```
+
+But **the annotation should be generated from the final surface sentence**, not from the template tokens.
+
+For example:
+
+```text
+بدي تكسي من كافيه راية لمشفى الحكمة
+```
+
+becomes conceptually:
+
+```text
+بدي          O
+تكسي         O
+من           O
+كافيه        B-PICKUP
+راية         I-PICKUP
+لمشفى        B-DEST
+الحكمة       I-DEST
+```
+
+The `ل` is **not part of the entity**.
+
+Likewise:
+
+```text
+بدي تكسي عالواجهة البحرية
+```
+
+should produce:
+
+```text
+بدي          O
+تكسي         O
+عالواجهة     B-PICKUP
+البحرية      I-PICKUP
+```
+
+assuming `عالواجهة البحرية` is indeed the location phrase you want annotated.
+
+That means our generator should know:
+
+```text
+surface form:
+    عالواجهة البحرية
+
+entity:
+    عالواجهة البحرية
+
+NER:
+    B-PICKUP I-PICKUP
+```
+
+or, if you want the attached preposition excluded:
+
+```text
+surface:
+    عالواجهة البحرية
+
+entity:
+    الواجهة البحرية
+
+NER:
+    O B-PICKUP I-PICKUP
+```
+
+**This is one point we need to explicitly settle before the script**, because your old examples consistently treat `لـ` / `بـ` / `عـ` as `O`:
+
+```text
+لـ        O
+ثانوية    B-DEST
+طرطوس     I-DEST
+```
+
+With the new orthography:
+
+```text
+لمشفى     ?
+الحكمة    ?
+```
+
+the annotation question becomes non-trivial.
+
+I recommend:
+
+> **The attached preposition remains `O`; only the location noun phrase gets `B-/I-`.**
+
+So:
+
+```text
+لمشفى الحكمة
+```
+
+would ideally become:
+
+```text
+لمشفى       O
+الحكمة      B-DEST
+```
+
+**if your whitespace tokenization keeps `لمشفى` together.**
+
+But that has a consequence: the NER model must learn that `لمشفى` contains an `ل` prefix and should not label the entire token as `DEST`.
+
+This is exactly why the script should perform **Arabic prefix-aware token/NER alignment**, rather than simply doing `text.split()`.
+
+---
+
+# 8. The generator architecture I now recommend
+
+Your input could be:
+
+```text
+language_components/
+├── greetings.json
+├── thanks.json
+├── please.json
+└── locations.json
+```
+
+And internally:
+
+```text
+locations.json
+    ↓
+PICKUP/DEST combinations
+    ↓
+request templates
+    ↓
+optional greeting
+    ↓
+optional please
+    ↓
+optional thanks
+    ↓
+surface sentence
+    ↓
+Arabic-aware tokenization
+    ↓
+entity alignment
+    ↓
+intent assignment
+    ↓
+JSONL
+```
+
+This also means we can produce **both full requests and partial requests**, which is essential for the state machine.
+
+---
+
+## Before I write the generator, I need these decisions
+
+There are three things I don't want to assume.
+
+### A. Preposition/entity boundary
+
+For:
+
+```text
+لمشفى الحكمة
+عالواجهة البحرية
+بالمشروع السادس
+```
+
+do you want:
+
+**Option 1 — preposition is outside entity**
+
+```text
+لمشفى       O
+الحكمة      B-DEST
+
+عالواجهة    O
+البحرية     I-DEST
+```
+
+or **Option 2 — whole surface phrase is entity**
+
+```text
+لمشفى       B-DEST
+الحكمة      I-DEST
+```
+
+I strongly recommend **Option 1**, but this should be your explicit annotation rule.
+
+### B. Standalone `please`
+
+What intent should:
+
+```text
+لو سمحت
+إذا بتريد
+إذا ما في إزعاج
+```
+
+receive?
+
+If there is no `please` intent in your classifier, I recommend **not generating standalone please examples**. We can still use them before/after taxi requests.
+
+### C. Please + thanks combinations
+
+Should we allow things like:
+
+```text
+بدي تكسي من ... ل... لو سمحت يعطيك العافية
+```
+
+or keep the generator to natural combinations such as:
+
+```text
+لو سمحت، بدي تكسي من ... ل...
+بدي تكسي من ... ل...، يعطيك العافية
+```
+
+Once these three are settled, the script can generate the dataset in the same JSONL format you're already training on, including `tokens` and `ner_tags`.
+
+--------------------------------------------------------------------------------------------------
+Yes. This is actually a key reason the **state machine must have priority over intent classification for follow-up answers**.
+
+### 1. Can AraBERT understand `لمشفى` as `ل` + `مشفى`?
+
+Yes, but there are two different things here.
+
+AraBERT's tokenizer can decompose an attached Arabic form into **subword pieces**, so it can learn that the beginning of `لمشفى` behaves differently from the location itself.
+
+However, I would **not make the NER annotation depend on AraBERT magically splitting Arabic morphology**.
+
+For example, if our human-readable dataset contains:
+
+```text
+بدي تكسي لمشفى الحكمة
+```
+
+we can have:
+
+```text
+tokens:
+["بدي", "تكسي", "لمشفى", "الحكمة"]
+
+ner_tags:
+["O", "O", "O", "B-DEST"]
+```
+
+Then during training, AraBERT's tokenizer may internally turn `لمشفى` into multiple subword tokens. Our training pipeline needs to correctly align:
+
+```text
+word-level BIO
+        ↓
+AraBERT subword BIO
+```
+
+That is a preprocessing concern, not something we need to force into the source dataset.
+
+So **yes, we can teach the model the distinction**, and we should preserve the natural connected spelling in the generated data.
+
+---
+
+# 2. Your follow-up question is more important
+
+You have:
+
+```text
+System:
+    "من أين تريد الانطلاق؟"
+
+User:
+    "ساحة البريد"
+```
+
+The classifier might produce:
+
+```json
+{
+    "intents": ["unknown"],
+    "from": "ساحة البريد",
+    "to": null
+}
+```
+
+Or potentially:
+
+```json
+{
+    "intents": [],
+    "from": "ساحة البريد",
+    "to": null
+}
+```
+
+**That is completely fine.**
+
+The state machine should not require the user to say:
+
+> "من ساحة البريد"
+
+because the system already established what information it wants.
+
+Your specification currently says:
+
+```text
+CASE waiting_for_pickup:
+
+    IF pickup present:
+        Save pickup
+        Set status = waiting_for_dest
+```
+
+That means:
+
+```text
+Bot: من أين تريد الانطلاق؟
+User: ساحة البريد
+```
+
+should absolutely work.
+
+The NER model's job is simply:
+
+```text
+ساحة البريد
+      ↓
+PICKUP
+```
+
+It doesn't need `من`.
+
+---
+
+# 3. Same thing for destination
+
+Bot:
+
+> أين تريد الذهاب؟
+
+User:
+
+> حي المعلمين
+
+NER:
+
+```text
+حي       B-DEST
+المعلمين I-DEST
+```
+
+The state machine says:
+
+```text
+waiting_for_dest
+    ↓
+dest exists
+    ↓
+confirmed
+```
+
+It doesn't matter that there was no:
+
+```text
+ل
+إلى
+لعند
+على
+```
+
+The **conversation context supplies the semantic role**.
+
+---
+
+# 4. This suggests an important architecture change
+
+We actually have **two sources of entity role information**:
+
+### Explicit role from the utterance
+
+```text
+بدي تكسي من ساحة البريد لحي المعلمين
+             ↑PICKUP     ↑DEST
+```
+
+NER can identify both.
+
+### Implicit role from conversation state
+
+```text
+Bot: من أين تريد الانطلاق؟
+User: ساحة البريد
+                 ↑
+              PICKUP
+```
+
+NER may simply identify:
+
+```text
+LOCATION
+```
+
+rather than necessarily knowing `PICKUP`.
+
+This distinction is important.
+
+I would therefore consider making the underlying NER entity:
+
+```text
+LOCATION
+```
+
+rather than:
+
+```text
+PICKUP
+DEST
+```
+
+**but that would be a significant change to your existing dataset/model**, so I wouldn't change it yet without discussing it.
+
+With your current `PICKUP`/`DEST` scheme, we can instead deliberately train examples such as:
+
+```json
+{
+  "text": "ساحة البريد",
+  "intents": ["request_taxi"],
+  "tokens": ["ساحة", "البريد"],
+  "ner_tags": ["B-PICKUP", "I-PICKUP"]
+}
+```
+
+and:
+
+```json
+{
+  "text": "حي المعلمين",
+  "intents": ["request_taxi"],
+  "tokens": ["حي", "المعلمين"],
+  "ner_tags": ["B-DEST", "I-DEST"]
+}
+```
+
+But there's a conceptual issue:
+
+The same phrase:
+
+```text
+ساحة البريد
+```
+
+could be a pickup **or** destination depending on the question.
+
+That's not something NER alone can reliably know.
+
+---
+
+# 5. I therefore recommend a state-aware entity interpretation layer
+
+Instead of assuming:
+
+```text
+NER → final semantic meaning
+```
+
+we should do:
+
+```text
+                    ┌── Intent classifier
+User message ───────┤
+                    └── NER
+                         ↓
+                  State-aware interpreter
+                         ↓
+                    State machine
+```
+
+For example:
+
+### Initial request
+
+```text
+User:
+بدي تكسي من ساحة البريد لحي المعلمين
+```
+
+NER:
+
+```text
+ساحة البريد       PICKUP
+حي المعلمين       DEST
+```
+
+No ambiguity.
+
+---
+
+### Follow-up for pickup
+
+```text
+State:
+waiting_for_pickup
+
+User:
+ساحة البريد
+```
+
+NER:
+
+```text
+ساحة البريد → location-like entity
+```
+
+State says:
+
+```text
+waiting_for_pickup
+        ↓
+interpret location as PICKUP
+```
+
+---
+
+### Follow-up for destination
+
+```text
+State:
+waiting_for_dest
+
+User:
+ساحة البريد
+```
+
+Same NER output.
+
+But:
+
+```text
+waiting_for_dest
+        ↓
+interpret location as DEST
+```
+
+This is much more robust.
+
+---
+
+# 6. This also solves a major problem with intent classification
+
+Imagine:
+
+```text
+Bot: من أين تريد الانطلاق؟
+User: ساحة البريد
+```
+
+Your intent classifier might reasonably say:
+
+```json
+["unknown"]
+```
+
+That's not a failure.
+
+The state machine should effectively say:
+
+```text
+Current state = waiting_for_pickup
+
+Do I have a pickup entity?
+YES
+
+→ accept answer
+```
+
+Likewise:
+
+```text
+Bot: أين تريد الذهاب؟
+User: ساحة البريد
+```
+
+could produce:
+
+```json
+["unknown"]
+```
+
+and still be correctly processed.
+
+Therefore, **follow-up states should not depend on `request_taxi` being detected again**.
+
+This is exactly what your specification already implies.
+
+---
+
+# 7. We should add these to the generated dataset
+
+This means the generator shouldn't only produce:
+
+```text
+بدي تكسي من {PICKUP} ل{DEST}
+```
+
+It should also generate **contextual response examples**.
+
+For pickup:
+
+```text
+{PICKUP}
+```
+
+For destination:
+
+```text
+{DEST}
+```
+
+Potentially with natural conversational modifiers:
+
+```text
+هناك
+بالمكان الفلاني
+هو {LOCATION}
+...
+```
+
+but I would start with the pure location:
+
+```text
+ساحة البريد
+حي المعلمين
+كافيه راية
+مشفى الحكمة
+```
+
+because that is precisely the edge case your state machine needs to support.
+
+---
+
+# 8. This changes our dataset generator design
+
+So I would now divide generated examples into **three categories**:
+
+### Category 1 — standalone semantic interactions
+
+```text
+مرحبا
+لو سمحت
+يعطيك العافية
+```
+
+with intents:
+
+```text
+greeting
+politeness
+thanks
+```
+
+### Category 2 — complete taxi requests
+
+```text
+مرحبا، لو سمحت بدي تكسي من كافيه راية لمشفى الحكمة
+```
+
+with:
+
+```text
+request_taxi + greeting + politeness
+```
+
+### Category 3 — state-dependent answers
+
+```text
+ساحة البريد
+حي المعلمين
+```
+
+These are interesting because their **correct NER role depends on state**.
+
+And I would keep that distinction explicit in the dataset generation rather than pretending the text itself always contains enough information.
+
+---
+
+## One architectural recommendation before we code
+
+Given this discovery, I'd actually make the pipeline:
+
+```text
+Intent + NER
+      ↓
+Normalize / extract entities
+      ↓
+State-aware interpretation
+      ↓
+State machine
+      ↓
+Response
+```
+
+rather than:
+
+```text
+Intent + NER
+      ↓
+State machine directly
+```
+
+The interpreter can perform rules such as:
+
+```text
+IF state == waiting_for_pickup
+AND message contains a location
+AND no explicit destination
+    → treat location as pickup
+
+IF state == waiting_for_dest
+AND message contains a location
+AND no explicit pickup
+    → treat location as destination
+```
+
+That gives us the behavior you want **without forcing the intent classifier or NER model to solve something that is inherently contextual**.
+
+And yes: with the five approved template families, greetings/please/thanks positioning, attached `ل/ب/ع`, standalone politeness, partial requests, and these state-dependent bare-location responses, we now have enough requirements to design the generator properly rather than bolting more templates onto it.
+
+--------------------------------------------------------------------------------------------------
+
+Yes. If we move to `LOCATION`, **complete requests containing both locations are still handled cleanly by the templates**. In fact, I think that is the better architecture.
+
+The key distinction is:
+
+* **NER answers:** "Which spans in this sentence are locations?"
+* **State/context interpreter answers:** "Which location is pickup and which is destination?"
+
+### Complete request
+
+For:
+
+> بدي تكسي من كافيه راية لمشفى الحكمة
+
+NER produces:
+
+```json
+{
+  "tokens": [
+    "بدي", "تكسي", "من", "كافيه", "راية",
+    "لمشفى", "الحكمة"
+  ],
+  "ner_tags": [
+    "O", "O", "O",
+    "B-LOCATION", "I-LOCATION",
+    "B-LOCATION", "I-LOCATION"
+  ]
+}
+```
+
+Then the interpreter sees:
+
+```text
+من كافيه راية
+        ↓
+     PICKUP
+
+لمشفى الحكمة
+        ↓
+      DEST
+```
+
+So the generated template itself carries the relationship.
+
+---
+
+## The templates need to encode the relationship
+
+We shouldn't simply have:
+
+```text
+{LOCATION} {LOCATION}
+```
+
+We have structured templates such as:
+
+```text
+{REQUEST} من {PICKUP} ل{DEST}
+{REQUEST} من {PICKUP} لعند {DEST}
+{REQUEST} من {PICKUP} إلى {DEST}
+{REQUEST} من {PICKUP} ع{DEST}
+
+{REQUEST} من عند {PICKUP} ل{DEST}
+{REQUEST} من {PICKUP} لـ {DEST}
+{REQUEST} ياخدني من {PICKUP} ل{DEST}
+{REQUEST} يوديني من {PICKUP} لعند {DEST}
+{REQUEST} يوصلني من {PICKUP} ل{DEST}
+```
+
+The generator knows that the first location slot is semantically `PICKUP` and the second is `DEST`.
+
+But **the output annotation only says `LOCATION`**:
+
+```text
+كافيه راية → LOCATION
+مشفى الحكمة → LOCATION
+```
+
+The semantic relationship is learned by the **sentence structure**, not encoded in the NER tag.
+
+---
+
+# Then the state machine becomes much cleaner
+
+### Initial request
+
+```text
+User:
+بدي تكسي من كافيه راية لمشفى الحكمة
+```
+
+Model:
+
+```text
+intent:
+request_taxi
+
+locations:
+[
+    "كافيه راية",
+    "مشفى الحكمة"
+]
+```
+
+Interpreter:
+
+```text
+"من" → first location = pickup
+"ل"  → second location = destination
+```
+
+Result:
+
+```json
+{
+  "pickup": "كافيه راية",
+  "dest": "مشفى الحكمة"
+}
+```
+
+---
+
+### Pickup-only request
+
+```text
+User:
+بدي تكسي من كافيه راية
+```
+
+Model:
+
+```text
+LOCATION:
+كافيه راية
+```
+
+Interpreter:
+
+```text
+"من" + location
+        ↓
+pickup
+```
+
+Result:
+
+```text
+pickup = كافيه راية
+dest = null
+```
+
+---
+
+### Destination-only request
+
+```text
+User:
+بدي تكسي لمشفى الحكمة
+```
+
+Model:
+
+```text
+LOCATION:
+مشفى الحكمة
+```
+
+Interpreter:
+
+```text
+"ل" + location
+       ↓
+destination
+```
+
+---
+
+### State-dependent bare answer
+
+Then:
+
+```text
+Bot:
+من أين تريد الانطلاق؟
+
+User:
+كافيه راية
+```
+
+NER:
+
+```text
+LOCATION = كافيه راية
+```
+
+Interpreter:
+
+```text
+state == waiting_for_pickup
+        ↓
+LOCATION → pickup
+```
+
+And:
+
+```text
+Bot:
+أين تريد الذهاب؟
+
+User:
+مشفى الحكمة
+```
+
+becomes:
+
+```text
+state == waiting_for_dest
+        ↓
+LOCATION → destination
+```
+
+No ambiguity remains.
+
+---
+
+# The generator therefore needs two layers
+
+This is the important part.
+
+### Layer 1 — semantic template
+
+Internally:
+
+```python
+Template(
+    text="{request} من {pickup} ل{dest}",
+    entities=[
+        ("pickup", "{pickup}"),
+        ("dest", "{dest}")
+    ]
+)
+```
+
+### Layer 2 — NER output
+
+The generator converts both placeholders to:
+
+```text
+B-LOCATION/I-LOCATION
+```
+
+while retaining metadata internally during generation that tells us:
+
+```text
+location_1 = pickup
+location_2 = destination
+```
+
+We don't necessarily have to put that metadata into the final `master.jsonl`; the template generator simply needs it while constructing the example.
+
+---
+
+# One caveat: prepositions aren't the only signal
+
+Consider:
+
+> بدي تكسي من كافيه راية ومشفى الحكمة
+
+That's potentially ambiguous.
+
+But:
+
+> بدي تكسي من كافيه راية لمشفى الحكمة
+
+is very clear.
+
+So our generator should deliberately generate **both strong and natural variations**, but we shouldn't generate grammatically dubious combinations just to increase dataset size.
+
+For example:
+
+```text
+من {PICKUP} ل{DEST}
+من {PICKUP} لعند {DEST}
+من {PICKUP} إلى {DEST}
+من {PICKUP} ع{DEST}
+```
+
+are useful.
+
+And:
+
+```text
+{PICKUP} {DEST}
+```
+
+is **not** useful for a complete request because the model has no reliable textual relationship to learn.
+
+---
+
+## So I would change the previous recommendation
+
+I recommend:
+
+```text
+NER entities:
+    LOCATION
+    TIME
+```
+
+rather than:
+
+```text
+NER entities:
+    PICKUP
+    DEST
+    TIME
+```
+
+and make the pipeline:
+
+```text
+User message
+     │
+     ├── Intent classifier
+     │
+     └── NER
+          │
+          └── LOCATION spans
+                  │
+                  ▼
+          Context interpreter
+                  │
+          ┌───────┴────────┐
+          │                │
+     explicit syntax    session state
+          │                │
+          └───────┬────────┘
+                  ▼
+             PICKUP / DEST
+                  │
+                  ▼
+            State machine
+```
+
+This also means your dataset templates **do handle both pickup and destination**; we just annotate both as `LOCATION` and let the template's structure teach the downstream interpreter their roles.
+
+I would make this change before we generate the dataset, because otherwise we'll generate thousands of examples using the old `PICKUP/DEST` scheme and then have to regenerate them.
+
+------------------------------------------------------------------------------------------------
+
+Yes. The **destination-first family still applies**, and it is actually an important reason to separate `LOCATION` from `PICKUP/DEST`.
+
+For example, we had:
+
+```text
+{REQUEST} ل{DEST} من {PICKUP}
+{REQUEST} لعند {DEST} من {PICKUP}
+{REQUEST} إلى {DEST} من {PICKUP}
+{REQUEST} ع{DEST} من {PICKUP}
+```
+
+So:
+
+> بدي تكسي لمشفى الحكمة من كافيه راية
+
+would be annotated:
+
+```json
+{
+  "text": "بدي تكسي لمشفى الحكمة من كافيه راية",
+  "intents": ["request_taxi"],
+  "tokens": ["بدي", "تكسي", "لمشفى", "الحكمة", "من", "كافيه", "راية"],
+  "ner_tags": ["O", "O", "O", "B-LOCATION", "I-LOCATION", "O", "B-LOCATION", "I-LOCATION"]
+}
+```
+
+The **first LOCATION is DEST**, despite appearing first.
+
+The interpreter gets:
+
+```text
+لمشفى الحكمة ← destination
+من كافيه راية ← pickup
+```
+
+So the rule is **not**:
+
+> first LOCATION = pickup, second LOCATION = destination.
+
+It is:
+
+> **The syntactic construction surrounding each LOCATION determines its role.**
+
+That means our templates should retain explicit semantic placeholders internally:
+
+```text
+{REQUEST} من {PICKUP} ل{DEST}
+{REQUEST} من {PICKUP} لعند {DEST}
+
+{REQUEST} ل{DEST} من {PICKUP}
+{REQUEST} لعند {DEST} من {PICKUP}
+```
+
+and the generator converts both placeholders to `LOCATION` in the actual NER output.
+
+This is also why we should **not discard the template metadata during generation**. Internally, the generator knows:
+
+```text
+LOCATION span #1 → DEST
+LOCATION span #2 → PICKUP
+```
+
+even though the NER tags are simply:
+
+```text
+LOCATION
+LOCATION
+```
+
+The eventual state-aware interpreter can then use the linguistic cues:
+
+```text
+من X       → pickup
+لـ X       → destination
+لعند X     → destination
+إلى X      → destination
+عـ X       → destination
+```
+
+while bare locations are resolved from state:
+
+```text
+waiting_for_pickup → LOCATION = pickup
+waiting_for_dest   → LOCATION = destination
+```
+
+So **yes, all the destination-first templates remain in the generator**. We should preserve both ordering families rather than simplifying them away.

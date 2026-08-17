@@ -6,7 +6,10 @@ sessions = {}
 
 def get_session(user_id):
     """الحصول على جلسة المستخدم"""
-    return sessions.get(user_id, {})
+    session = sessions.get(user_id, {})
+    if "status" not in session:
+        session["status"] = "idle"
+    return session
 
 def update_session(user_id, new_data):
     """
@@ -42,6 +45,18 @@ def clear_session(user_id):
     """مسح جلسة المستخدم"""
     if user_id in sessions: 
         del sessions[user_id]
+
+def set_session_status(user_id, status):
+    """تعيين حالة الجلسة"""
+    if user_id not in sessions:
+        sessions[user_id] = {}
+    sessions[user_id]["status"] = status
+    return sessions[user_id]
+
+def get_session_status(user_id):
+    """الحصول على حالة الجلسة"""
+    session = get_session(user_id)
+    return session.get("status", "idle")
 
 def has_pending_order(user_id):
     """

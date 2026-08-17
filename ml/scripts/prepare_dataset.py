@@ -6,7 +6,7 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
 ML_DIR = Path(__file__).resolve().parent.parent
 
-INPUT = ML_DIR / "data" / "raw" / "master.jsonl"
+INPUT = ML_DIR / "data" / "raw" / "generated_taxi.jsonl"
 OUTPUT = ML_DIR / "data" / "processed"
 INTENTS_FILE = ML_DIR / "config" / "intents.json"
 
