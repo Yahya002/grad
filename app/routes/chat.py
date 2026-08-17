@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
 from app.database.mongo import get_db
 from app.services.intent_service import analyze_message
-from app.services.session_service import get_session, update_session, clear_session, has_pending_order
+from app.services.session_service import get_session, update_session, clear_session, has_pending_order, set_session_status, get_session_status
 from app.utils.validator import validate
 from app.models.order_model import save_order
 from bson.objectid import ObjectId
@@ -79,7 +79,10 @@ def chat():
     message = data.get("message")
     user_id = data.get("user_id", "default")
 
-    ai_result = analyze_message(message)
+    # Get session status before AI analysis for location resolution
+    status = get_session_status(user_id)
+    
+    ai_result = analyze_message(message, session_status=status)
     from app.models.llm_log_model import save_llm_log
     save_llm_log(user_id, message, ai_result)
     print("AI RESULT:", ai_result)
@@ -87,139 +90,159 @@ def chat():
         return jsonify(ai_result)
 
     intents = ai_result.get("intents", [])
+    pickup = ai_result.get("from")
+    dest = ai_result.get("to")
     
     # =========================
-    # 🧠 التحقق من وجود طلب معلق
+    # 🚨 Priority: Cancellation
     # =========================
-    has_pending = has_pending_order(user_id)
-    print(f"🔍 طلب معلق للمستخدم {user_id}: {has_pending}")
+    if "cancel" in intents:
+        clear_session(user_id)
+        return jsonify({
+            "reply": "تم إلغاء الطلب ❌",
+            "intents": intents,
+            "replies": ["تم إلغاء الطلب ❌"],
+            "has_pending_order": False
+        })
     
     # =========================
-    # 🎯 معالجة النوايا المتعددة بالترتيب
+    # 🎯 Get current session status
     # =========================
-    replies = []
-    session_updated = False
-    order_saved = False
+    print(f"🔍 Current status for {user_id}: {status}")
     
-    # إذا كان هناك طلب معلق، نحدث الجلسة دائماً بغض النظر عن النوايا
-    if has_pending:
-        print("📝 تحديث الجلسة المعلقة")
-        session = update_session(user_id, ai_result)
-        session_updated = True
-        
-        # التحقق من اكتمال البيانات
-        missing = validate(session)
-        
-        if not missing:
-            # =========================
-            # 💾 Save order
-            # =========================
-            clean_order = {
-                "from": session.get("from"),
-                "to": session.get("to"),
-                "name": session.get("name"),
-                "phone": session.get("phone"),
-                "intents": session.get("intents", []),
-                "status": "pending"
-            }
-
-            save_order(clean_order)
-            clear_session(user_id)
-            order_saved = True
-            replies.append("تم تسجيل الطلب ✅")
-        else:
-            replies.append(f"محتاج: {', '.join(missing)}")
+    reply = ""
     
-    # معالجة النوايا الحالية
-    for intent in intents:
-        print(f"🎯 معالجة النية: {intent}")
-        
-        # =========================
-        # ❌ Cancel
-        # =========================
-        if intent == "cancel":
-            clear_session(user_id)
-            replies.append("تم إلغاء الطلب ❌")
-            order_saved = False  # إلغاء حفظ الطلب
-        
-        # =========================
-        # � Greeting
-        # =========================
-        elif intent == "greeting":
-            if not has_pending:  # لا نرد بالترحيب إذا كان هناك طلب معلق
-                replies.append("أهلاً وسهلاً �")
-        
-        # =========================
-        # 🙏 Thank
-        # =========================
-        elif intent == "thank":
-            if not has_pending:
-                replies.append("عفواً! أنا هنا للمساعدة 😊")
-        
-        # =========================
-        # ❓ Information requests (no session needed)
-        # =========================
-        elif intent == "ask_directions":
-            if not has_pending:
-                replies.append("أنا مساعد الطلبات، يمكنني مساعدتك في طلب تكسي أو توصيل. كيف يمكنني مساعدتك؟")
-        
-        elif intent == "ask_product":
-            if not has_pending:
-                replies.append("نحن نقدم خدمة التاكسي والتوصيل. يمكنك طلب تكسي أو توصيل طلباتك.")
-        
-        # =========================
-        # 🧠 Session merge (for order-related intents)
-        # =========================
-        elif intent in ["taxi", "delivery"]:
-            if not session_updated:  # لم يتم تحديث الجلسة بعد
+    # =========================
+    # 🔄 State Machine
+    # =========================
+    if status == "idle":
+        # CASE "idle"
+        if any(intent in intents for intent in ["taxi", "delivery", "request_taxi"]):
+            # Check for greeting to prepend
+            if "greeting" in intents:
+                reply = "أهلا وسهلا. "
+            
+            # Evaluate entities
+            if pickup and dest:
+                # Both pickup & dest present: Confirm order
                 session = update_session(user_id, ai_result)
-                session_updated = True
-                
-                # =========================
-                # 🔍 Validation
-                # =========================
                 missing = validate(session)
-
-                if missing:
-                    replies.append(f"محتاج: {', '.join(missing)}")
-                else:
-                    # =========================
-                    # 💾 Save order
-                    # =========================
+                
+                if not missing:
                     clean_order = {
                         "from": session.get("from"),
                         "to": session.get("to"),
-                        "name": session.get("name"),
-                        "phone": session.get("phone"),
                         "intents": session.get("intents", []),
                         "status": "pending"
                     }
-
                     save_order(clean_order)
                     clear_session(user_id)
-                    order_saved = True
-                    replies.append("تم تسجيل الطلب ✅")
-        
-        # =========================
-        # ❓ Unknown intent
-        # =========================
-        elif intent == "unknown":
-            if not has_pending:
-                replies.append("لم أفهم جزء من رسالتك.")
-    
-    # إذا لم تكن هناك ردود، رد افتراضي
-    if not replies:
-        if has_pending:
-            replies.append("أنا بانتظار باقي المعلومات المطلوبة.")
+                    set_session_status(user_id, "idle")
+                    reply += "تم تأكيد طلبك ✅"
+                else:
+                    reply += f"محتاج: {', '.join(missing)}"
+            elif pickup and not dest:
+                # pickup ONLY: Save pickup, ask for destination
+                session = update_session(user_id, ai_result)
+                set_session_status(user_id, "waiting_for_dest")
+                reply += "تم حفظ موقع الانطلاق. أين تريد الذهاب؟"
+            elif dest and not pickup:
+                # dest ONLY: Save dest, ask for pickup
+                session = update_session(user_id, ai_result)
+                set_session_status(user_id, "waiting_for_pickup")
+                reply += "تم حفظ الوجهة. من أين تريد الانطلاق؟"
+            else:
+                # NO entities: Ask for pickup
+                set_session_status(user_id, "waiting_for_pickup")
+                reply += "من أين تريد الانطلاق؟"
+        elif "greeting" in intents or "thank" in intents:
+            reply = "أهلا وسهلا"
         else:
-            replies.append("لم أفهم رسالتك. هل يمكنك التوضيح أكثر؟")
+            reply = "لم أفهم رسالتك. هل يمكنك التوضيح أكثر؟"
     
-    # تجميع الردود في رسالة واحدة
-    combined_reply = " | ".join(replies)
+    elif status == "waiting_for_pickup":
+        # CASE "waiting_for_pickup"
+        if pickup:
+            # pickup present: Save pickup, ask for destination
+            session = update_session(user_id, ai_result)
+            set_session_status(user_id, "waiting_for_dest")
+            reply = "تم حفظ موقع الانطلاق. أين تريد الذهاب؟"
+        else:
+            # Repeat pickup question
+            reply = "من أين تريد الانطلاق؟"
+    
+    elif status == "waiting_for_dest":
+        # CASE "waiting_for_dest"
+        if dest:
+            # dest present: Save dest, confirm order
+            session = update_session(user_id, ai_result)
+            missing = validate(session)
+            
+            if not missing:
+                clean_order = {
+                    "from": session.get("from"),
+                    "to": session.get("to"),
+                    "name": session.get("name"),
+                    "phone": session.get("phone"),
+                    "intents": session.get("intents", []),
+                    "status": "pending"
+                }
+                save_order(clean_order)
+                clear_session(user_id)
+                set_session_status(user_id, "idle")
+                reply = "تم تأكيد طلبك ✅"
+            else:
+                reply = f"محتاج: {', '.join(missing)}"
+        else:
+            # Repeat destination question
+            reply = "أين تريد الذهاب؟"
+    
+    elif status == "confirmed":
+        # CASE "confirmed"
+        if any(intent in intents for intent in ["taxi", "delivery", "request_taxi"]):
+            # new request_taxi: Reset to idle, redirect to idle handling
+            set_session_status(user_id, "idle")
+            # Re-process as idle
+            status = "idle"
+            if "greeting" in intents:
+                reply = "أهلا وسهلا. "
+            
+            if pickup and dest:
+                session = update_session(user_id, ai_result)
+                missing = validate(session)
+                
+                if not missing:
+                    clean_order = {
+                        "from": session.get("from"),
+                        "to": session.get("to"),
+                        "intents": session.get("intents", []),
+                        "status": "pending"
+                    }
+                    save_order(clean_order)
+                    clear_session(user_id)
+                    set_session_status(user_id, "idle")
+                    reply += "تم تأكيد طلبك ✅"
+                else:
+                    reply += f"محتاج: {', '.join(missing)}"
+            elif pickup and not dest:
+                session = update_session(user_id, ai_result)
+                set_session_status(user_id, "waiting_for_dest")
+                reply += "تم حفظ موقع الانطلاق. أين تريد الذهاب؟"
+            elif dest and not pickup:
+                session = update_session(user_id, ai_result)
+                set_session_status(user_id, "waiting_for_pickup")
+                reply += "تم حفظ الوجهة. من أين تريد الانطلاق؟"
+            else:
+                set_session_status(user_id, "waiting_for_pickup")
+                reply += "من أين تريد الانطلاق؟"
+        elif "thank" in intents:
+            reply = "أهلا وسهلا"
+        else:
+            reply = "لم أفهم رسالتك. هل يمكنك التوضيح أكثر؟"
     
     return jsonify({
-        "reply": combined_reply,
+        "reply": reply,
         "intents": intents,
-        "replies": replies,  # ردود منفصلة لكل نية
-        "has_pending_order": has_pending_order(user_id)  # حالة الطلب المعلق
+        "replies": [reply],
+        "has_pending_order": has_pending_order(user_id)
     })

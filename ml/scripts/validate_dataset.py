@@ -7,8 +7,7 @@ ML_DIR = Path(__file__).resolve().parent.parent
 
 INTENTS_FILE = ML_DIR / "config" / "intents.json"
 ENTITIES_FILE = ML_DIR / "config" / "entities.json"
-DATASET_FILE = ML_DIR / "data" / "raw" / "master.jsonl"
-
+DATASET_FILE = ML_DIR / "data" / "raw" / "generated_taxi.jsonl"
 
 def load_json(path):
     with path.open("r", encoding="utf-8") as f:
