@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify, render_template
 from app.database.mongo import get_db
 from app.services.intent_service import analyze_message
-from app.services.session_service import get_session, update_session, clear_session, has_pending_order, set_session_status, get_session_status
+from app.services.session_service import get_session, update_session, clear_session, has_pending_order, set_session_status, get_session_status, set_current_order_id, get_current_order_id
 from app.utils.validator import validate
-from app.models.order_model import save_order
+from app.models.order_model import save_order, update_order_status, get_latest_order_by_user
 from bson.objectid import ObjectId
 
 chat_bp = Blueprint("chat", __name__)
@@ -97,11 +97,28 @@ def chat():
     # 🚨 Priority: Cancellation
     # =========================
     if "cancel" in intents:
-        clear_session(user_id)
+        # التحقق من وجود طلب حالي
+        current_order_id = get_current_order_id(user_id)
+        
+        if current_order_id:
+            # تحديث حالة الطلب إلى "cancelled"
+            try:
+                update_order_status(current_order_id, "cancelled")
+                reply = "تم إلغاء الطلب ❌"
+                # مسح الجلسة بعد تحديث الطلب
+                clear_session(user_id)
+            except Exception as e:
+                reply = f"حدث خطأ أثناء إلغاء الطلب: {str(e)}"
+                print(f"❌ خطأ في إلغاء الطلب: {e}")
+        else:
+            # لا يوجد طلب حالي، مسح الجلسة فقط
+            clear_session(user_id)
+            reply = "تم إلغاء الطلب ❌"
+        
         return jsonify({
-            "reply": "تم إلغاء الطلب ❌",
+            "reply": reply,
             "intents": intents,
-            "replies": ["تم إلغاء الطلب ❌"],
+            "replies": [reply],
             "has_pending_order": False
         })
     
@@ -133,9 +150,12 @@ def chat():
                         "from": session.get("from"),
                         "to": session.get("to"),
                         "intents": session.get("intents", []),
-                        "status": "pending"
+                        "status": "pending",
+                        "user_id": user_id
                     }
-                    save_order(clean_order)
+                    result = save_order(clean_order)
+                    order_id = str(result.inserted_id)
+                    set_current_order_id(user_id, order_id)
                     clear_session(user_id)
                     set_session_status(user_id, "idle")
                     reply += "تم تأكيد طلبك ✅"
@@ -185,9 +205,12 @@ def chat():
                     "name": session.get("name"),
                     "phone": session.get("phone"),
                     "intents": session.get("intents", []),
-                    "status": "pending"
+                    "status": "pending",
+                    "user_id": user_id
                 }
-                save_order(clean_order)
+                result = save_order(clean_order)
+                order_id = str(result.inserted_id)
+                set_current_order_id(user_id, order_id)
                 clear_session(user_id)
                 set_session_status(user_id, "idle")
                 reply = "تم تأكيد طلبك ✅"
@@ -216,9 +239,12 @@ def chat():
                         "from": session.get("from"),
                         "to": session.get("to"),
                         "intents": session.get("intents", []),
-                        "status": "pending"
+                        "status": "pending",
+                        "user_id": user_id
                     }
-                    save_order(clean_order)
+                    result = save_order(clean_order)
+                    order_id = str(result.inserted_id)
+                    set_current_order_id(user_id, order_id)
                     clear_session(user_id)
                     set_session_status(user_id, "idle")
                     reply += "تم تأكيد طلبك ✅"

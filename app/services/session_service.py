@@ -73,3 +73,28 @@ def has_pending_order(user_id):
     order_intents = ["taxi", "delivery"]
     session_intents = session.get("intents", [])
     return any(intent in session_intents for intent in order_intents)
+
+def set_current_order_id(user_id, order_id):
+    """
+    تخزين معرف الطلب الحالي في الجلسة
+    
+    المعاملات:
+        user_id (str): معرف المستخدم
+        order_id (str): معرف الطلب
+    """
+    if user_id not in sessions:
+        sessions[user_id] = {}
+    sessions[user_id]["current_order_id"] = order_id
+
+def get_current_order_id(user_id):
+    """
+    الحصول على معرف الطلب الحالي من الجلسة
+    
+    المعاملات:
+        user_id (str): معرف المستخدم
+        
+    المُرجع:
+        str: معرف الطلب أو None
+    """
+    session = get_session(user_id)
+    return session.get("current_order_id")
