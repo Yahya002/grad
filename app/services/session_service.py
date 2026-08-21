@@ -60,16 +60,19 @@ def get_session_status(user_id):
 
 def has_pending_order(user_id):
     """
-    التحقق مما إذا كان هناك طلب معلق للمعرف المستخدم
-    
-    المعاملات:
-        user_id (str): معرف المستخدم
-        
-    المُرجع:
-        bool: True إذا كان هناك طلب معلق
+    Check whether the user currently has a pending order/session.
     """
+
     session = get_session(user_id)
-    # نعتبر الطلب معلقاً إذا كانت هناك نوايا order-related
-    order_intents = ["taxi", "delivery"]
+
+    order_intents = [
+        "request_taxi",
+        "delivery",
+    ]
+
     session_intents = session.get("intents", [])
-    return any(intent in session_intents for intent in order_intents)
+
+    return any(
+        intent in session_intents
+        for intent in order_intents
+    )
