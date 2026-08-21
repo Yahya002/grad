@@ -5,6 +5,7 @@ from app.services.session_service import get_session, update_session, clear_sess
 from app.utils.validator import validate
 from app.models.order_model import save_order
 from bson.objectid import ObjectId
+from datetime import datetime
 
 chat_bp = Blueprint("chat", __name__)
 
@@ -15,8 +16,23 @@ def index():
 @chat_bp.route("/orders", methods=["GET"])
 def get_orders():
     db = get_db()
-    orders = list(db.orders.find({}, {"_id": 0}))
-    return jsonify(orders)
+    orders = list(db.orders.find({}, {"_id": 1, "customer": 1, "phone": 1, "message": 1, "date": 1, "status": 1, "priority": 1, "from": 1, "to": 1}))
+    
+    formatted_orders = []
+    for order in orders:
+        formatted_orders.append({
+            "id": str(order["_id"]),
+            "customer": order.get("customer"),
+            "phone": order.get("phone"),
+            "message": order.get("message"),
+            "date": order.get("date"),
+            "status": order.get("status"),
+            "priority": order.get("priority"),
+            "from": order.get("from"),
+            "to": order.get("to")
+        })
+    
+    return jsonify(formatted_orders)
 
 @chat_bp.route("/corrections")
 def corrections():
@@ -130,14 +146,19 @@ def chat():
                 
                 if not missing:
                     clean_order = {
+                        "customer": user_id,
+                        "message": message,
                         "from": session.get("from"),
                         "to": session.get("to"),
                         "intents": session.get("intents", []),
-                        "status": "pending"
+                        "status": "pending",
+                        "date": datetime.utcnow().isoformat(),
+                        "priority": "normal"
                     }
-                    save_order(clean_order)
+                    result = save_order(clean_order)
+                    clean_order["id"] = str(result.inserted_id)
                     clear_session(user_id)
-                    set_session_status(user_id, "idle")
+                    set_session_status(user_id, "confirmed")
                     reply += "تم تأكيد طلبك ✅"
                 else:
                     reply += f"محتاج: {', '.join(missing)}"
@@ -155,20 +176,55 @@ def chat():
                 # NO entities: Ask for pickup
                 set_session_status(user_id, "waiting_for_pickup")
                 reply += "من أين تريد الانطلاق؟"
-        elif "greeting" in intents or "thank" in intents:
+        elif "greeting" in intents or "thanks" in intents:
             reply = "أهلا وسهلا"
         else:
             reply = "لم أفهم رسالتك. هل يمكنك التوضيح أكثر؟"
     
     elif status == "waiting_for_pickup":
         # CASE "waiting_for_pickup"
+
         if pickup:
-            # pickup present: Save pickup, ask for destination
+            # Save the newly provided pickup.
             session = update_session(user_id, ai_result)
-            set_session_status(user_id, "waiting_for_dest")
-            reply = "تم حفظ موقع الانطلاق. أين تريد الذهاب؟"
+
+            # If destination was already collected earlier,
+            # we now have a complete order.
+            if session.get("to"):
+                missing = validate(session)
+
+                if not missing:
+                    clean_order = {
+                        "customer": user_id,
+                        "message": message,
+                        "from": session.get("from"),
+                        "to": session.get("to"),
+                        "intents": session.get("intents", []),
+                        "status": "pending",
+                        "date": datetime.utcnow().isoformat(),
+                        "priority": "normal"
+                    }
+
+                    result = save_order(clean_order)
+                    clean_order["id"] = str(result.inserted_id)
+
+                    # Preserve confirmed state for application purposes.
+                    clear_session(user_id)
+                    set_session_status(user_id, "confirmed")
+
+                    reply = "تم تأكيد طلبك ✅"
+
+                else:
+                    reply = f"محتاج: {', '.join(missing)}"
+
+            else:
+                # We have pickup but still need destination.
+                set_session_status(user_id, "waiting_for_dest")
+
+                reply = "تم حفظ موقع الانطلاق. أين تريد الذهاب؟"
+
         else:
-            # Repeat pickup question
+            # No pickup detected.
             reply = "من أين تريد الانطلاق؟"
     
     elif status == "waiting_for_dest":
@@ -180,16 +236,19 @@ def chat():
             
             if not missing:
                 clean_order = {
+                    "customer": user_id,
+                    "message": message,
                     "from": session.get("from"),
                     "to": session.get("to"),
-                    "name": session.get("name"),
-                    "phone": session.get("phone"),
                     "intents": session.get("intents", []),
-                    "status": "pending"
+                    "status": "pending",
+                    "date": datetime.utcnow().isoformat(),
+                    "priority": "normal"
                 }
-                save_order(clean_order)
+                result = save_order(clean_order)
+                clean_order["id"] = str(result.inserted_id)
                 clear_session(user_id)
-                set_session_status(user_id, "idle")
+                set_session_status(user_id, "confirmed")
                 reply = "تم تأكيد طلبك ✅"
             else:
                 reply = f"محتاج: {', '.join(missing)}"
@@ -213,14 +272,19 @@ def chat():
                 
                 if not missing:
                     clean_order = {
+                        "customer": user_id,
+                        "message": message,
                         "from": session.get("from"),
                         "to": session.get("to"),
                         "intents": session.get("intents", []),
-                        "status": "pending"
+                        "status": "pending",
+                        "date": datetime.utcnow().isoformat(),
+                        "priority": "normal"
                     }
-                    save_order(clean_order)
+                    result = save_order(clean_order)
+                    clean_order["id"] = str(result.inserted_id)
                     clear_session(user_id)
-                    set_session_status(user_id, "idle")
+                    set_session_status(user_id, "confirmed")
                     reply += "تم تأكيد طلبك ✅"
                 else:
                     reply += f"محتاج: {', '.join(missing)}"
@@ -235,7 +299,7 @@ def chat():
             else:
                 set_session_status(user_id, "waiting_for_pickup")
                 reply += "من أين تريد الانطلاق؟"
-        elif "thank" in intents:
+        elif "thanks" in intents:
             reply = "أهلا وسهلا"
         else:
             reply = "لم أفهم رسالتك. هل يمكنك التوضيح أكثر؟"
